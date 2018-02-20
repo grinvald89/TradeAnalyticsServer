@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace Server
 {
@@ -17,6 +18,8 @@ namespace Server
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
+
+            ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
         }
     }
 }
