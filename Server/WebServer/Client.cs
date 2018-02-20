@@ -8,35 +8,42 @@ namespace Server.WebServer
     class Client
     {
         // Конструктор класса. Ему нужно передавать принятого клиента от TcpListener
-        public Client(TcpClient Client)
+        public Client(TcpClient client)
         {
-            string Request = ""; // Объявим строку, в которой будет хранится запрос клиента
-            byte[] Buffer = new byte[1024]; // Буфер для хранения принятых от клиента данных
-            int Count; // Переменная для хранения количества байт, принятых от клиента
+            byte[] buffer = new byte[client.ReceiveBufferSize];  // Буфер для хранения принятых от клиента данных
+            StringBuilder request = new StringBuilder(); // Объявим строку, в которой будет хранится запрос клиента
+            NetworkStream stream = client.GetStream(); // Сохраним поток
 
-            // Читаем из потока клиента до тех пор, пока от него поступают данные
-            while ((Count = Client.GetStream().Read(Buffer, 0, Buffer.Length)) > 0)
+            if (stream.CanRead)
             {
-                Request += Encoding.ASCII.GetString(Buffer, 0, Count);
-
-                if (Request.IndexOf("}") >= 0 || Request.Length > 4096)
-                    break;
+                do
+                {
+                    int bytes = stream.Read(buffer, 0, (int)client.ReceiveBufferSize);
+                    request.Append(Encoding.UTF8.GetString(buffer, 0, bytes));
+                }
+                while (stream.DataAvailable); // пока данные есть в потоке
             }
+
+            if (stream.CanWrite)
+            {
+                string data = "{data: 1, dete: 2}";
+                // Необходимые заголовки: ответ сервера, тип и длина содержимого. После двух пустых строк - само содержимое
+                string sResponse = "HTTP/1.1 200 OK\nContent-type: application/json\nAccess-Control-Allow-Origin: *\nContent-Length:" + data.Length.ToString() + "\n\n" + data;
+                // Приведем строку к виду массива байт
+                byte[] bResponse = Encoding.ASCII.GetBytes(sResponse);
+
+                // Отправим его клиенту
+                stream.Write(bResponse, 0, bResponse.Length);
+            }
+
+            // Закроем поток
+            stream.Close();
+
+            // Закроем соединение
+            client.Close();
 
             //if (Request.IndexOf(@"POST /api/writeRate/") != -1)
             //    addRate(getJsonData(Request));
-
-            // Код простой HTML-странички
-            string Html = "<html><body><h1>It works!</h1></body></html>";
-            // Необходимые заголовки: ответ сервера, тип и длина содержимого. После двух пустых строк - само содержимое
-            string Str = "HTTP/1.1 200 OK\nContent-type: text/html\nContent-Length:" + Html.Length.ToString() + "\n\n" + Html;
-            // Приведем строку к виду массива байт
-            byte[] Bufferr = Encoding.ASCII.GetBytes(Str);
-
-            // Отправим его клиенту
-            Client.GetStream().Write(Bufferr, 0, Bufferr.Length);
-            // Закроем соединение
-            Client.Close();
         }
     }
 }

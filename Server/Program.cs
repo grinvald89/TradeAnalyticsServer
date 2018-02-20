@@ -15,11 +15,16 @@ namespace Server
         [STAThread]
         static void Main()
         {
+            DataBase.DataBase.open();
+            Config.lPairs = DataBase.DataBase.getPairs();
+
+            // DataBase.TXTtoDB.start();
+
+            ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
-
-            ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
         }
     }
 }

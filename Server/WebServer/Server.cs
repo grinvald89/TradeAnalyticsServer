@@ -27,7 +27,7 @@ namespace Server.WebServer
             if (Listener != null)
                 Listener.Stop();
 
-            DataBase.close();
+            DataBase.DataBase.close();
         }
     }
 }
