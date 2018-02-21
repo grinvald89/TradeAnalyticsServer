@@ -83,9 +83,14 @@ namespace Server.WebServer
 
             string sParams = Url.Substring(startIndex, finishIndex);
 
+            DateTime finishdate = DateTime.Today;
+
+            if (Url.IndexOf("finishdate") != -1)
+                finishdate = Convert.ToDateTime(GetParam("finishdate", sParams.Split('&')));
+
             List<Rate> lResult = DataBase.DataBase.getRates(
                 Convert.ToInt32(GetParam("take", sParams.Split('&'))),
-                Convert.ToDateTime(GetParam("finishdate", sParams.Split('&'))),
+                finishdate,
                 Convert.ToInt64(GetParam("pairid", sParams.Split('&'))),
                 Convert.ToInt32(GetParam("minutes", sParams.Split('&')))
             );
