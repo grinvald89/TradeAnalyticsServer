@@ -20,6 +20,8 @@ namespace Server
 
             // DataBase.TXTtoDB.start();
 
+            // List<Rate> r = DataBase.DataBase.getRates(10, new DateTime(2018,2,16,0,0,0), 1, 5);
+
             ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
 
             Application.EnableVisualStyles();
