@@ -52,18 +52,28 @@ namespace Server.DataBase
         }
 
 
-        public static List<Rate> getRates(int Take, DateTime FinishDate, long PairId, int Minutes)
+        // IsReverseDate наверно вынести в другой запрос
+        public static List<Rate> getRates(int Take, DateTime Date, long PairId, int Minutes, bool IsForward)
         {
             if (sqlConnection.State == ConnectionState.Closed)
                 open();
 
             List<Rate> lRates= new List<Rate>();
 
-            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM Rates WHERE Date < (@FinishDate) AND PairId = @PairId ORDER BY Date DESC", sqlConnection))
+            string sOperator = "<";
+            string sSortDESC= "DESC";
+
+            if (IsForward)
+                sOperator = ">";
+
+            if (IsForward)
+                sSortDESC = "ASC";
+
+            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM Rates WHERE Date " + sOperator + @" (@Date) AND PairId = @PairId ORDER BY Date " + sSortDESC, sqlConnection))
             {
                 command.Parameters.AddRange(new[] {
                     new SqlParameter("Take", Take * Minutes),
-                    new SqlParameter("FinishDate", FinishDate.ToString("yyyy-MM-ddTHH:mm:ss.000")),
+                    new SqlParameter("Date", Date.ToString("yyyy-MM-ddTHH:mm:ss.000")),
                     new SqlParameter("PairId", PairId)
                 });
 
@@ -84,6 +94,9 @@ namespace Server.DataBase
                     reader.Close();
                 }
             }
+
+            if (!IsForward)
+                lRates.Reverse();
 
             if (lRates.Count == 1)
                 return lRates;
