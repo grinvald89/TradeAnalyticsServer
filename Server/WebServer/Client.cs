@@ -82,17 +82,22 @@ namespace Server.WebServer
             int finishIndex = Url.IndexOf(" ", Url.IndexOf(" ") + 1) + 1 - startIndex;
 
             string sParams = Url.Substring(startIndex, finishIndex);
+            bool isForward = false;
 
-            DateTime finishdate = DateTime.Today;
+            DateTime date = DateTime.Today;
 
-            if (Url.IndexOf("finishdate") != -1)
-                finishdate = Convert.ToDateTime(GetParam("finishdate", sParams.Split('&')));
+            if (Url.IndexOf("date") != -1)
+                date = Convert.ToDateTime(GetParam("date", sParams.Split('&')));
+
+            if (Url.IndexOf("isforward") != -1)
+                isForward = true;
 
             List<Rate> lResult = DataBase.DataBase.getRates(
                 Convert.ToInt32(GetParam("take", sParams.Split('&'))),
-                finishdate,
+                date,
                 Convert.ToInt64(GetParam("pairid", sParams.Split('&'))),
-                Convert.ToInt32(GetParam("minutes", sParams.Split('&')))
+                Convert.ToInt32(GetParam("minutes", sParams.Split('&'))),
+                isForward
             );
 
             List<ResponseRate> Result = new List<ResponseRate>();
