@@ -10,8 +10,9 @@ namespace Server
         public float Close;
         public float High;
         public float Low;
+        public int TimeFrame;
 
-        public Rate(long PairId, DateTime Date, float Open, float Close, float High, float Low)
+        public Rate(long PairId, DateTime Date, float Open, float Close, float High, float Low, int TimeFrame)
         {
             this.PairId = PairId;
             this.Date = Date;
@@ -19,6 +20,7 @@ namespace Server
             this.Close = Close;
             this.High = High;
             this.Low = Low;
+            this.TimeFrame = TimeFrame;
         }
     }
 }

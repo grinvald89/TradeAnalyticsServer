@@ -53,7 +53,7 @@ namespace Server.DataBase
 
 
         // IsReverseDate наверно вынести в другой запрос
-        public static List<Rate> getRates(int Take, DateTime Date, long PairId, int Minutes, bool IsForward)
+        public static List<Rate> getRates(int Take, DateTime Date, long PairId, int TimeFrame, bool IsForward)
         {
             if (sqlConnection.State == ConnectionState.Closed)
                 open();
@@ -69,12 +69,13 @@ namespace Server.DataBase
             if (IsForward)
                 sSortDESC = "ASC";
 
-            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM Rates WHERE Date " + sOperator + @" (@Date) AND PairId = @PairId ORDER BY Date " + sSortDESC, sqlConnection))
+            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM Rates WHERE Date " + sOperator + @" (@Date) AND PairId = @PairId AND TimeFrame = @TimeFrame ORDER BY Date " + sSortDESC, sqlConnection))
             {
                 command.Parameters.AddRange(new[] {
-                    new SqlParameter("Take", Take * Minutes),
+                    new SqlParameter("Take", Take),
                     new SqlParameter("Date", Date.ToString("yyyy-MM-ddTHH:mm:ss.000")),
-                    new SqlParameter("PairId", PairId)
+                    new SqlParameter("PairId", PairId),
+                    new SqlParameter("TimeFrame", TimeFrame)
                 });
 
                 using (var reader = command.ExecuteReader())
@@ -87,7 +88,8 @@ namespace Server.DataBase
                             Convert.ToSingle(reader["Open"]),
                             Convert.ToSingle(reader["Close"]),
                             Convert.ToSingle(reader["High"]),
-                            Convert.ToSingle(reader["Low"])
+                            Convert.ToSingle(reader["Low"]),
+                            Convert.ToInt32(reader["TimeFrame"])
                         ));
 
                     lRates.AddRange(list);
@@ -98,45 +100,7 @@ namespace Server.DataBase
             if (!IsForward)
                 lRates.Reverse();
 
-            if (lRates.Count == 1)
-                return lRates;
-            else
-            {
-                List<Rate> lResult = new List<Rate>();
-
-                List<Rate> candlestick = new List<Rate>();
-
-                for (int i = 0; i < lRates.Count + 1; i++)
-                {
-                    // Формируем свечу
-                    if (candlestick.Count == Minutes)
-                    {
-                        float open = candlestick[candlestick.Count - 1].Open;
-                        float close = candlestick[0].Close;
-
-                        float high = candlestick[0].High;
-                        float low = candlestick[0].Low;
-
-                        foreach (Rate item in candlestick)
-                        {
-                            if (item.High > high)
-                                high = item.High;
-
-                            if (item.Low < low)
-                                low = item.Low;
-                        }
-
-                        lResult.Add(new Rate(PairId, candlestick[0].Date, open, close, high, low));
-
-                        candlestick.Clear();
-                    }
-
-                    if (i < lRates.Count)
-                        candlestick.Add(lRates[i]);
-                }
-
-                return lResult;
-            }
+            return lRates;
         }
 
 
@@ -161,7 +125,7 @@ namespace Server.DataBase
             if (sqlConnection.State == ConnectionState.Closed)
                 open();
 
-            using (var command = new SqlCommand("INSERT INTO [Rates] (PairId, Date, [Open], [Close], High, Low)VALUES(@PairId, @Date, @Open, @Close, @High, @Low)", sqlConnection))
+            using (var command = new SqlCommand("INSERT INTO [Rates] (PairId, Date, [Open], [Close], High, Low, TimeFrame)VALUES(@PairId, @Date, @Open, @Close, @High, @Low, @TimeFrame)", sqlConnection))
             {
                 command.Parameters.AddRange(new[] {
                     new SqlParameter("PairId", rate.PairId),
@@ -169,7 +133,8 @@ namespace Server.DataBase
                     new SqlParameter("Open", rate.Open),
                     new SqlParameter("Close", rate.Close),
                     new SqlParameter("High", rate.High),
-                    new SqlParameter("Low", rate.Low)
+                    new SqlParameter("Low", rate.Low),
+                    new SqlParameter("TimeFrame", rate.TimeFrame)
                 });
 
                 using (var reader = command.ExecuteReader())

@@ -18,7 +18,7 @@ namespace Server
             DataBase.DataBase.open();
             Config.lPairs = DataBase.DataBase.getPairs();
 
-            // DataBase.TXTtoDB.start();
+            DataBase.TXTtoDB.Start();
 
             // List<Rate> r = DataBase.DataBase.getRates(10, new DateTime(2018,2,16,0,0,0), 1, 5);
 

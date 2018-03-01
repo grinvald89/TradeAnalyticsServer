@@ -13,23 +13,44 @@ namespace Server.DataBase
 {
     class TXTtoDB
     {
-        public static void start()
+        public static void Start()
         {
-            StreamReader objReader = new StreamReader(Config.PATH + "input.txt");
-            string sLine = "";
-            ArrayList arrText = new ArrayList();
+            int finishedFiles = 0;
 
-            while (sLine != null)
+            string[] files = Directory.GetFiles(Config.PATH + @"\Rates", "*.txt");
+
+            foreach (string file in files)
             {
-                sLine = objReader.ReadLine();
-                if (sLine != null)
-                    arrText.Add(sLine);
+                int iTimeFrame = file.LastIndexOf(Regex.Match(file, @"-[0-9]{1,2}.").ToString());
+                int timeFrame = 1;
+
+                if (iTimeFrame != 1)
+                    timeFrame = Convert.ToInt32(file.Substring(iTimeFrame + 1).Replace(".txt", ""));
+
+                StreamReader objReader = new StreamReader(Config.PATH + @"\Rates\" + file.Substring(file.LastIndexOf(@"\") + 1));
+                string sLine = "";
+                ArrayList textFile = new ArrayList();
+
+                while (sLine != null)
+                {
+                    sLine = objReader.ReadLine();
+                    if (sLine != null)
+                        textFile.Add(sLine);
+                }
+                objReader.Close();
+
+                WriteToBD(textFile, timeFrame, finishedFiles);
+
+                finishedFiles++;
             }
-            objReader.Close();
+        }
 
-            foreach (string sOutput in arrText)
+
+        static void WriteToBD(ArrayList TextFile, int TimeFrame, int finishedFiles)
+        {
+            foreach (string sOutput in TextFile)
             {
-                DateTime Date = getDate(Regex.Match(sOutput, @";[0-9\/]{8};").ToString().Replace(";", ""), Regex.Match(sOutput, @";[0-9\:]{8};").ToString().Replace(";", ""));
+                DateTime Date = GetDate(Regex.Match(sOutput, @";[0-9\/]{8};").ToString().Replace(";", ""), Regex.Match(sOutput, @";[0-9\:]{8};").ToString().Replace(";", ""));
 
                 string _sOutput = sOutput.Substring(sOutput.IndexOf(Regex.Match(sOutput, @";[0-9\:]{8};").ToString()) + 10);
                 float Open = Convert.ToSingle(Regex.Match(_sOutput, @"^[0-9\.]+;").ToString().Replace(";", "").Replace(".", ","));
@@ -44,17 +65,19 @@ namespace Server.DataBase
                 float Close = Convert.ToSingle(Regex.Match(_sOutput, @"^[0-9\.]+;").ToString().Replace(";", "").Replace(".", ","));
 
                 DataBase.addRate(new Rate(
-                    getPairId(Regex.Match(sOutput, @"^[A-Z]+;").ToString().Replace(";", "")),
-                    getDate(Regex.Match(sOutput, @";[0-9\/]{8};").ToString().Replace(";", ""), Regex.Match(sOutput, @";[0-9\:]{8};").ToString().Replace(";", "")),
+                    GetPairId(Regex.Match(sOutput, @"^[A-Z]+;").ToString().Replace(";", "")),
+                    GetDate(Regex.Match(sOutput, @";[0-9\/]{8};").ToString().Replace(";", ""), Regex.Match(sOutput, @";[0-9\:]{8};").ToString().Replace(";", "")),
                     Open,
                     Close,
                     High,
-                    Low
+                    Low,
+                    TimeFrame
                 ));
             }
         }
 
-        static long getPairId(string Name)
+
+        static long GetPairId(string Name)
         {
             if (Config.lPairs.Find(x => x.Name == Name) == null)
             {
@@ -67,7 +90,7 @@ namespace Server.DataBase
                 return Config.lPairs.Find(x => x.Name == Name).Id;
         }
 
-        static DateTime getDate(string Date, string Time)
+        static DateTime GetDate(string Date, string Time)
         {
             int Year = Convert.ToInt32(("20" + Regex.Match(Date, @"/[0-9]{2}$")).ToString().Replace(@"/", ""));
             int Mounth = Convert.ToInt32(Regex.Match(Date, @"/[0-9]{2}/").ToString().Replace(@"/", ""));

@@ -96,7 +96,7 @@ namespace Server.WebServer
                 Convert.ToInt32(GetParam("take", sParams.Split('&'))),
                 date,
                 Convert.ToInt64(GetParam("pairid", sParams.Split('&'))),
-                Convert.ToInt32(GetParam("minutes", sParams.Split('&'))),
+                Convert.ToInt32(GetParam("timeframe", sParams.Split('&'))),
                 isForward
             );
 
