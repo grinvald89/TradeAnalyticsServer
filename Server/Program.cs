@@ -18,11 +18,11 @@ namespace Server
             DataBase.DataBase.open();
             Config.lPairs = DataBase.DataBase.getPairs();
 
-            DataBase.TXTtoDB.Start();
+            // DataBase.TXTtoDB.Start();
 
-            // List<Rate> r = DataBase.DataBase.getRates(10, new DateTime(2018,2,16,0,0,0), 1, 5);
+            Simulation.Simulation.Start();
 
-            ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
+            // ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

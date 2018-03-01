@@ -74,6 +74,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rate.cs" />
+    <Compile Include="Simulation\Response.cs" />
+    <Compile Include="Simulation\Simulation.cs" />
     <Compile Include="WebServer\Client.cs" />
     <Compile Include="WebServer\Server.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
