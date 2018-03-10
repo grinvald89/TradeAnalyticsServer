@@ -6,13 +6,13 @@ using System.Threading.Tasks;
 
 namespace Server.Simulation
 {
-    class Statisticscs
+    class Statistics
     {
         public int TimeFrame;
         public float Percent;
         public int Count;
 
-        public Statisticscs(int TimeFrame, float Percent, int Count)
+        public Statistics(int TimeFrame, float Percent, int Count)
         {
             this.TimeFrame = TimeFrame;
             this.Percent = Percent;
@@ -39,7 +39,7 @@ namespace Server.Simulation
     class Mounth
     {
         public int Number;
-        public List<Statisticscs> Statistics;
+        public List<Statistics> Statistics;
 
         public Mounth(int Number)
         {
@@ -53,11 +53,14 @@ namespace Server.Simulation
         public List<Bid> Bids;
 
         public Mounth[] Mounth;
-        public Statisticscs Overall;
+        public Statistics[] Overall;
 
         public Response(long PairId)
         {
             this.PairId = PairId;
+            this.Bids = new List<Bid>();
+            this.Mounth = new Mounth[12];
+            this.Overall = new Statistics[7];
         }
     }
 }

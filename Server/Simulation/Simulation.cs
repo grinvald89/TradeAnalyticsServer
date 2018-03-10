@@ -20,30 +20,38 @@ namespace Server.Simulation
             {
                 Response response = new Response(pair.Id);
 
-                response.Bids = new List<Bid>();
-
                 foreach (int TimeFrame in Config.TimeFrames)
                     response.Bids.AddRange(CheckRate(pair.Id, TimeFrame));
-
-                response.Mounth = new Mounth[12];
 
                 for (int i = 1; i <= 12; i++)
                 {
                     response.Mounth[i - 1] = new Mounth(i);
-                    response.Mounth[i - 1].Statistics = new List<Statisticscs>();
+                    response.Mounth[i - 1].Statistics = new List<Statistics>();
 
                     foreach (int TimeFrame in Config.TimeFrames)
                     {
                         List<Bid> bids = response.Bids.FindAll(x => x.Start.Date.Month == i && x.TimeFrame == TimeFrame);
 
-                        response.Mounth[i - 1].Statistics.Add(new Statisticscs(TimeFrame, (float)bids.FindAll(x => x.Success).Count / bids.Count, bids.Count));
+                        response.Mounth[i - 1].Statistics.Add(new Statistics(TimeFrame, (float)bids.FindAll(x => x.Success).Count / bids.Count, bids.Count));
                     }
                 }
 
-                response.Overall = new Statisticscs(0, (float) response.Bids.FindAll(x => x.Success).Count / response.Bids.Count, response.Bids.Count);
+                response.Overall[0] = new Statistics(0, (float) response.Bids.FindAll(x => x.Success).Count / response.Bids.Count * 100, response.Bids.Count);
+
+                for (int i = 0; i < Config.TimeFrames.Length; i++) {
+                    List<Bid> bids = response.Bids.FindAll(x => x.TimeFrame == Config.TimeFrames[i]);
+                    response.Overall[i + 1] = new Statistics(Config.TimeFrames[i], (float) bids.FindAll(x => x.Success).Count / bids.Count * 100, bids.Count);
+                }
 
                 result.Add(response);
             }
+
+            var l0 = result.OrderBy(x => x.Overall[0].Percent);
+            var l1 = result.OrderBy(x => x.Overall[1].Percent);
+            var l2 = result.OrderBy(x => x.Overall[2].Percent);
+            var l3 = result.OrderBy(x => x.Overall[3].Percent);
+            var l4 = result.OrderBy(x => x.Overall[4].Percent);
+            var l5 = result.OrderBy(x => x.Overall[5].Percent);
 
             return result;
 
