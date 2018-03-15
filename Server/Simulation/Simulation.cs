@@ -98,15 +98,16 @@ namespace Server.Simulation
                     float minBody = sum / ratePeriod;
 
                     // if (i + k < rates.Count && Math.Abs(rates[i].Open - rates[i].Close) * rateMin > minBody)
-                    if (i + k < Rates.Count &&
+                    if (i + k + 1 < Rates.Count &&
                         //Math.Abs(rates[i].Open - rates[i].Close) * rateMin > minBody &&
                         (Rates[i - 1].Close - Rates[i].Open > 0) == !prevRatio &&
+                        // Math.Abs(Rates[i - 1].Open - Rates[i - 1].Close) > minBody * rateMin &&
                         // Math.Abs(prevBigSMA - prevSmallSMA) > minBody &&
                         Rates[i].Date.Hour > 9 &&
                         Rates[i].Date.Hour < 20 &&
                         Rates[i].Date.DayOfWeek != DayOfWeek.Saturday &&
                         Rates[i].Date.DayOfWeek != DayOfWeek.Sunday)
-                            result.Add(new Bid(TimeFrame, Rates[i], Rates[i + k], (Rates[i].Open - Rates[i + k].Open > 0) == prevRatio));
+                            result.Add(new Bid(TimeFrame, Rates[i + 1], Rates[i + 1 + k], (Rates[i + 1].Close - Rates[i + 1 + k].Close > 0) == prevRatio));
                 }
             }
 
