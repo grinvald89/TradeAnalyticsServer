@@ -6,135 +6,159 @@ using System.Threading.Tasks;
 
 namespace Server.Simulation
 {
+    class Bollinger
+    {
+        public float Up;
+        public float SMA;
+        public float Down;
+
+        public Bollinger(float Up, float SMA, float Down)
+        {
+            this.Up = Up;
+            this.SMA = SMA;
+            this.Down = Down;
+        }
+
+        public static float CalcSMA(List<Rate> Rates, int Index, int Period)
+        {
+            float sum = 0;
+
+            for (int i = Index - Period + 1; i <= Index; i++)
+                sum += Rates[i].Close;
+
+            return sum / Period;
+        }
+
+        public static Bollinger Сalculate(List<Rate> Rates, int Index, int Period, float Deviations)
+        {
+            float StdDev;
+            double sum = 0;
+
+            for (int i = Index - Period + 1; i <= Index; i++)
+                sum += Math.Pow(Rates[i].Close - CalcSMA(Rates, i, Period), 2);
+
+            StdDev = Convert.ToSingle(Math.Sqrt(sum / Period));
+
+            float SMA = CalcSMA(Rates, Index, Period);
+            float Up = SMA + (Deviations * StdDev);
+            float Down = SMA - (Deviations * StdDev);
+
+            return new Bollinger(Up, SMA, Down);
+        }
+    }
+
     class Simulation
     {
-        public static List<Response> Start()
+        public static List<Bid> Start()
         {
-            DateTime startTime = DateTime.Now;
+            const int pairId = 12;
+            const int timeFrame = 5;
+            const int period = 13;
+            const float deviations = (float)2.4;
 
-            List<Response> result = new List<Response>();
+            DateTime startTime = DateTime.Now;
 
             List<Pair> pairs = DataBase.DataBase.getPairs();
 
-            foreach (Pair pair in pairs)
+            Response response = new Response(pairId);
+
+            List<Rate> rates = DataBase.DataBase.getRates(1000000, DateTime.Today, pairId, timeFrame, false);
+
+            List<Bid> result = Analysis(rates, period, deviations);
+
+            int success = result.FindAll(x => x.Success).Count;
+            int count = result.Count;
+            float percent = (float) success / result.Count * 100;
+
+            result.Reverse();
+
+            List<List<Bid>> resList = new List<List<Bid>>();
+
+            for (int i = 20; i < 30; i++)
             {
-                Response response = new Response(pair.Id);
-
-                foreach (int TimeFrame in Config.TimeFrames)
-                    response.Bids.AddRange(CheckRate(pair.Id, TimeFrame));
-
-                for (int i = 1; i <= 12; i++)
-                {
-                    response.Mounth[i - 1] = new Mounth(i);
-                    response.Mounth[i - 1].Statistics = new List<Statistics>();
-
-                    foreach (int TimeFrame in Config.TimeFrames)
-                    {
-                        List<Bid> bids = response.Bids.FindAll(x => x.Start.Date.Month == i && x.TimeFrame == TimeFrame);
-
-                        response.Mounth[i - 1].Statistics.Add(new Statistics(TimeFrame, (float)bids.FindAll(x => x.Success).Count / bids.Count, bids.Count));
-                    }
-                }
-
-                response.Overall[0] = new Statistics(0, (float) response.Bids.FindAll(x => x.Success).Count / response.Bids.Count * 100, response.Bids.Count);
-
-                for (int i = 0; i < Config.TimeFrames.Length; i++) {
-                    List<Bid> bids = response.Bids.FindAll(x => x.TimeFrame == Config.TimeFrames[i]);
-                    response.Overall[i + 1] = new Statistics(Config.TimeFrames[i], (float) bids.FindAll(x => x.Success).Count / bids.Count * 100, bids.Count);
-                }
-
-                result.Add(response);
+                resList.Add(Analysis(rates, period, (float) i / 10));
             }
 
-            var l0 = result.OrderBy(x => x.Overall[0].Percent);
-            var l1 = result.OrderBy(x => x.Overall[1].Percent);
-            var l2 = result.OrderBy(x => x.Overall[2].Percent);
-            var l3 = result.OrderBy(x => x.Overall[3].Percent);
-            var l4 = result.OrderBy(x => x.Overall[4].Percent);
-            var l5 = result.OrderBy(x => x.Overall[5].Percent);
+            float maxPercent = (float) resList[0].FindAll(x => x.Success).Count / resList[0].Count * 100;
+            int index = 0;
+
+            for (int i = 0; i < resList.Count; i++)
+            {
+                float a = (float)resList[i].FindAll(x => x.Success).Count / resList[i].Count * 100;
+
+                if (a > maxPercent)
+                {
+                    maxPercent = a;
+                    index = i;
+                }
+            }
+
+
+            /*
+            List<Bid> lastMonth = result.FindAll(x => x.Start.Date.Month == 2 && x.Start.Date.Year == 2018);
+
+            int success_lastMonth = lastMonth.FindAll(x => x.Success).Count;
+            float percent_lastMonth = (float) success_lastMonth / lastMonth.Count * 100;
+
+            List<Bid> last3Month = result.FindAll(x => x.Start.Date.Month < 2 && x.Start.Date.Year == 2018);
+
+            int success_last3Month = last3Month.FindAll(x => x.Success).Count;
+            float percent_last3Month = (float)success_last3Month / last3Month.Count * 100;
+            */
 
             return result;
 
             double time = (DateTime.Now - startTime).TotalSeconds;
         }
 
-        static List<Bid> CheckRate(long PairId, int TimeFrame)
+        static List<Bid> Analysis(List<Rate> Rates, int Period, float Deviations)
         {
-            List<Rate> rates = DataBase.DataBase.getRates(1000000, DateTime.Today, PairId, TimeFrame, false);
-
-            return Analysis(rates, TimeFrame);
-        }
-
-        static List<Bid> Analysis(List<Rate> Rates, int TimeFrame)
-        {
-            // Start analys
-            
-            const int bigSMAPeriod = 45;
-            const int smallSMAPeriod = 4;
-            const int ratePeriod = 10;
-            const float rateMin = (float)0.6;
-
             List<Bid> result = new List<Bid>();
 
             for (int i = 0; i < Rates.Count; i++)
             {
-                if (i > bigSMAPeriod + 1)
+                if (i > Period * 2)
                 {
-                    float prevBigSMA = CalcSMA(i - bigSMAPeriod - 1, i, bigSMAPeriod, Rates);
-                    float prevSmallSMA = CalcSMA(i - smallSMAPeriod - 1, i, smallSMAPeriod, Rates);
-                    float curBigSMA = CalcSMA(i - bigSMAPeriod, i, bigSMAPeriod, Rates);
-                    float curSmallSMA = CalcSMA(i - smallSMAPeriod, i, smallSMAPeriod, Rates);
+                    Bollinger bollinger = Bollinger.Сalculate(Rates, i, Period, Deviations);
 
-                    Boolean prevRatio = (prevBigSMA - prevSmallSMA > 0);
-                    Boolean curRatio = (curBigSMA - curSmallSMA > 0);
+                    List<float> SMA = new List<float>();
 
-                    int k = 1;
+                    for (int j = i - Period + 1; j <= i; j++)
+                        SMA.Add(Bollinger.CalcSMA(Rates, j, Period));
 
-                    float sum = 0;
+                    float min = SMA[0];
+                    float max = SMA[0];
 
-                    for (int j = i - ratePeriod; j < i; j++)
-                        sum += Math.Abs(Rates[j].Open - Rates[j].Close);
+                    foreach (var item in SMA)
+                    {
+                        if (item > max)
+                            max = item;
 
-                    float minBody = sum / ratePeriod;
+                        if (item < min)
+                            min = item;
+                    }
 
-                    // if (i + k < rates.Count && Math.Abs(rates[i].Open - rates[i].Close) * rateMin > minBody)
-                    if (i + k + 1 < Rates.Count &&
-                        //Math.Abs(rates[i].Open - rates[i].Close) * rateMin > minBody &&
-                        (Rates[i - 1].Close - Rates[i].Open > 0) == !prevRatio &&
-                        // Math.Abs(Rates[i - 1].Open - Rates[i - 1].Close) > minBody * rateMin &&
-                        // Math.Abs(prevBigSMA - prevSmallSMA) > minBody &&
+                    if ((Rates[i].Close > bollinger.Up || Rates[i].Close < bollinger.Down) &&
+                        (Rates[i - 1].Close < bollinger.Up && Rates[i - 1].Close > bollinger.Down) &&
+                        (max - min < Math.Abs((Rates[i].Open - Rates[i].Close) * 2)) &&
                         Rates[i].Date.Hour > 9 &&
-                        Rates[i].Date.Hour < 20 &&
                         Rates[i].Date.DayOfWeek != DayOfWeek.Saturday &&
                         Rates[i].Date.DayOfWeek != DayOfWeek.Sunday)
-                            result.Add(new Bid(TimeFrame, Rates[i + 1], Rates[i + 1 + k], (Rates[i + 1].Close - Rates[i + 1 + k].Close > 0) == prevRatio));
+                    {
+                        // 3, 6, 12, 15, 24
+                        int time = 12;
+
+                        result.Add(new Bid(
+                            60,
+                            Rates[i + 1],
+                            Rates[i + 1 + time],
+                            ((Rates[i + 1].Open - Rates[i + 1 + time].Close > 0) == Rates[i].Close > bollinger.Up)
+                        ));
+                    }
                 }
             }
 
-            /*
-            List<Bid> lSuccess = result.FindAll(x => x.Success);
-            List<Bid> lNotSuccess = result.FindAll(x => !x.Success);
-
-            float percent = (float) lSuccess.Count / result.Count * 100;
-            */
-
             return result;
-
-
-
-
-
-            // Finish analys
-        }
-
-        static float CalcSMA(int start, int finish, int period, List<Rate> rates)
-        {
-            float sum = 0;
-
-            for (int i = start; i <= finish; i++)
-                sum += rates[i].Close;
-
-            return sum / period;
         }
     }
 }
