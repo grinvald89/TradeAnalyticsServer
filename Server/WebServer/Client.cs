@@ -92,7 +92,7 @@ namespace Server.WebServer
             if (Url.IndexOf("isforward") != -1)
                 isForward = true;
 
-            List<Rate> lResult = DataBase.DataBase.getRates(
+            List<Candlestick> lResult = DataBase.DataBase.getRates(
                 Convert.ToInt32(GetParam("take", sParams.Split('&'))),
                 date,
                 Convert.ToInt64(GetParam("pairid", sParams.Split('&'))),

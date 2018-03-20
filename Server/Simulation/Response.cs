@@ -23,11 +23,11 @@ namespace Server.Simulation
     class Bid
     {
         public int TimeFrame;
-        public Rate Start;
-        public Rate Finish;
+        public Tick Start;
+        public Tick Finish;
         public bool Success;
 
-        public Bid(int TimeFrame, Rate Start, Rate Finish, bool Success)
+        public Bid(int TimeFrame, Tick Start, Tick Finish, bool Success)
         {
             this.TimeFrame = TimeFrame;
             this.Start = Start;

@@ -8,133 +8,144 @@ namespace Server.Simulation
 {
     class Simulation
     {
-        public static List<Response> Start()
+        private static List<Tick> ticksOfLastCandlestick = new List<Tick>();
+        private static List<Candlestick> candlesticks = new List<Candlestick>();
+
+        const int bigPeriod = 13;
+        const int smallPeriod = 4;
+
+        public static List<Bid> Start()
         {
-            DateTime startTime = DateTime.Now;
+            const int pairId = 12;
 
             List<Response> result = new List<Response>();
 
             List<Pair> pairs = DataBase.DataBase.getPairs();
 
-            foreach (Pair pair in pairs)
-            {
-                Response response = new Response(pair.Id);
+            List<Tick> ticks = DataBase.DataBase.GetTicks(10000000, DateTime.Now, pairId);
 
-                foreach (int TimeFrame in Config.TimeFrames)
-                    response.Bids.AddRange(CheckRate(pair.Id, TimeFrame));
-
-                for (int i = 1; i <= 12; i++)
-                {
-                    response.Mounth[i - 1] = new Mounth(i);
-                    response.Mounth[i - 1].Statistics = new List<Statistics>();
-
-                    foreach (int TimeFrame in Config.TimeFrames)
-                    {
-                        List<Bid> bids = response.Bids.FindAll(x => x.Start.Date.Month == i && x.TimeFrame == TimeFrame);
-
-                        response.Mounth[i - 1].Statistics.Add(new Statistics(TimeFrame, (float)bids.FindAll(x => x.Success).Count / bids.Count, bids.Count));
-                    }
-                }
-
-                response.Overall[0] = new Statistics(0, (float) response.Bids.FindAll(x => x.Success).Count / response.Bids.Count * 100, response.Bids.Count);
-
-                for (int i = 0; i < Config.TimeFrames.Length; i++) {
-                    List<Bid> bids = response.Bids.FindAll(x => x.TimeFrame == Config.TimeFrames[i]);
-                    response.Overall[i + 1] = new Statistics(Config.TimeFrames[i], (float) bids.FindAll(x => x.Success).Count / bids.Count * 100, bids.Count);
-                }
-
-                result.Add(response);
-            }
-
-            var l0 = result.OrderBy(x => x.Overall[0].Percent);
-            var l1 = result.OrderBy(x => x.Overall[1].Percent);
-            var l2 = result.OrderBy(x => x.Overall[2].Percent);
-            var l3 = result.OrderBy(x => x.Overall[3].Percent);
-            var l4 = result.OrderBy(x => x.Overall[4].Percent);
-            var l5 = result.OrderBy(x => x.Overall[5].Percent);
-
-            return result;
-
-            double time = (DateTime.Now - startTime).TotalSeconds;
+            return Analysis(ticks);
         }
 
-        static List<Bid> CheckRate(long PairId, int TimeFrame)
-        {
-            List<Rate> rates = DataBase.DataBase.getRates(1000000, DateTime.Today, PairId, TimeFrame, false);
 
-            return Analysis(rates, TimeFrame);
-        }
-
-        static List<Bid> Analysis(List<Rate> Rates, int TimeFrame)
+        private static List<Bid> Analysis(List<Tick> Ticks)
         {
-            // Start analys
-            
-            const int bigSMAPeriod = 45;
-            const int smallSMAPeriod = 4;
-            const int ratePeriod = 10;
-            const float rateMin = (float)0.6;
+            float percent;
 
             List<Bid> result = new List<Bid>();
 
-            for (int i = 0; i < Rates.Count; i++)
+            for (int i = 0; i < Ticks.Count; i++)
             {
-                if (i > bigSMAPeriod + 1)
+                if (candlesticks.Count > bigPeriod)
                 {
-                    float prevBigSMA = CalcSMA(i - bigSMAPeriod - 1, i, bigSMAPeriod, Rates);
-                    float prevSmallSMA = CalcSMA(i - smallSMAPeriod - 1, i, smallSMAPeriod, Rates);
-                    float curBigSMA = CalcSMA(i - bigSMAPeriod, i, bigSMAPeriod, Rates);
-                    float curSmallSMA = CalcSMA(i - smallSMAPeriod, i, smallSMAPeriod, Rates);
+                    float currBigSMA = Indicators.SMA.CalcTicks(
+                            candlesticks.GetRange(candlesticks.Count - bigPeriod - 1, bigPeriod),
+                            Ticks[i]
+                        );
 
-                    Boolean prevRatio = (prevBigSMA - prevSmallSMA > 0);
-                    Boolean curRatio = (curBigSMA - curSmallSMA > 0);
+                    float currSmallSMA = Indicators.SMA.CalcTicks(
+                            candlesticks.GetRange(candlesticks.Count - smallPeriod - 1, smallPeriod),
+                            Ticks[i]
+                        );
 
-                    int k = 1;
+                    float prevBigSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - bigPeriod - 1, bigPeriod));
 
-                    float sum = 0;
+                    float prevSmallSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - smallPeriod - 1, smallPeriod));
 
-                    for (int j = i - ratePeriod; j < i; j++)
-                        sum += Math.Abs(Rates[j].Open - Rates[j].Close);
+                    if ((prevBigSMA - prevSmallSMA > 0) != ((currBigSMA - currSmallSMA) > 0))
+                    {
+                        DateTime nextDate = Ticks[i].Date.AddMinutes(1);
 
-                    float minBody = sum / ratePeriod;
+                        Tick nextTick;
 
-                    // if (i + k < rates.Count && Math.Abs(rates[i].Open - rates[i].Close) * rateMin > minBody)
-                    if (i + k + 1 < Rates.Count &&
-                        //Math.Abs(rates[i].Open - rates[i].Close) * rateMin > minBody &&
-                        (Rates[i - 1].Close - Rates[i].Open > 0) == !prevRatio &&
-                        // Math.Abs(Rates[i - 1].Open - Rates[i - 1].Close) > minBody * rateMin &&
-                        // Math.Abs(prevBigSMA - prevSmallSMA) > minBody &&
-                        Rates[i].Date.Hour > 9 &&
-                        Rates[i].Date.Hour < 20 &&
-                        Rates[i].Date.DayOfWeek != DayOfWeek.Saturday &&
-                        Rates[i].Date.DayOfWeek != DayOfWeek.Sunday)
-                            result.Add(new Bid(TimeFrame, Rates[i + 1], Rates[i + 1 + k], (Rates[i + 1].Close - Rates[i + 1 + k].Close > 0) == prevRatio));
+                        List<Tick> nextTicks = Ticks.FindAll(x => 
+                            x.Date.Day == nextDate.Day &&
+                            x.Date.Hour == nextDate.Hour &&
+                            x.Date.Minute == nextDate.Minute
+                        );
+
+                        if (nextTicks.Count > 0)
+                        {
+                            nextTick = nextTicks[0];
+                            int diffMillisecond = Math.Abs(Ticks[i].Date.Millisecond - nextTicks[0].Date.Millisecond);
+
+                            foreach (Tick tick in nextTicks)
+                                if (Math.Abs(tick.Date.Millisecond - Ticks[i].Date.Millisecond) < diffMillisecond)
+                                {
+                                    diffMillisecond = Math.Abs(tick.Date.Millisecond - Ticks[i].Date.Millisecond);
+                                    nextTick = tick;
+                                }
+
+                            if ((result.Count == 0 || (Ticks[i].Date - result.Last().Finish.Date).Minutes >= 1) && Ticks[i].Date.Hour > 8)
+                            {
+                                result.Add(new Bid(1,
+                                    Ticks[i],
+                                    nextTick,
+                                    (Ticks[i].Value - nextTick.Value > 0) != (currBigSMA - currSmallSMA > 0))
+                                );
+                            }
+                        }
+                    }
                 }
+
+                AddTickToCandlesticks(Ticks[i]);
+
+                percent = (float)result.FindAll(x => x.Success).Count / result.Count * 100;
             }
 
-            /*
-            List<Bid> lSuccess = result.FindAll(x => x.Success);
-            List<Bid> lNotSuccess = result.FindAll(x => !x.Success);
-
-            float percent = (float) lSuccess.Count / result.Count * 100;
-            */
+            percent = (float)result.FindAll(x => x.Success).Count / result.Count * 100;
 
             return result;
-
-
-
-
-
-            // Finish analys
         }
 
-        static float CalcSMA(int start, int finish, int period, List<Rate> rates)
+
+        private static void AddTickToCandlesticks(Tick Tick)
         {
-            float sum = 0;
+            if (candlesticks.Count > 0)
+            {
+                if (candlesticks.Last().Date.Year != Tick.Date.Year ||
+                    candlesticks.Last().Date.Month != Tick.Date.Month ||
+                    candlesticks.Last().Date.Day != Tick.Date.Day ||
+                    candlesticks.Last().Date.Hour != Tick.Date.Hour ||
+                    candlesticks.Last().Date.Minute != Tick.Date.Minute)
+                        CalcLastCandlestick();
 
-            for (int i = start; i <= finish; i++)
-                sum += rates[i].Close;
+                ticksOfLastCandlestick.Add(Tick);
+            }
+            else
+            {
+                if (ticksOfLastCandlestick.Count > 0 && candlesticks.Count == 0 && ticksOfLastCandlestick.Last().Date.Second > Tick.Date.Second)
+                    CalcLastCandlestick();
 
-            return sum / period;
+                ticksOfLastCandlestick.Add(Tick);
+            }
+        }
+
+        private static void CalcLastCandlestick()
+        {
+            float high = ticksOfLastCandlestick[0].Value;
+            float low = ticksOfLastCandlestick[0].Value;
+
+            foreach (Tick tick in ticksOfLastCandlestick)
+            {
+                if (tick.Value > high)
+                    high = tick.Value;
+
+                if (tick.Value < low)
+                    low = tick.Value;
+            }
+
+            candlesticks.Add(new Candlestick(
+                ticksOfLastCandlestick[0].PairId,
+                ticksOfLastCandlestick[0].Date,
+                ticksOfLastCandlestick[0].Value,
+                ticksOfLastCandlestick.Last().Value,
+                high,
+                low,
+                1)
+            );
+
+            ticksOfLastCandlestick.Clear();
         }
     }
 }

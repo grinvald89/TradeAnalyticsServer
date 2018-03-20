@@ -53,12 +53,12 @@ namespace Server.DataBase
 
 
         // IsReverseDate наверно вынести в другой запрос
-        public static List<Rate> getRates(int Take, DateTime Date, long PairId, int TimeFrame, bool IsForward)
+        public static List<Candlestick> getRates(int Take, DateTime Date, long PairId, int TimeFrame, bool IsForward)
         {
             if (sqlConnection.State == ConnectionState.Closed)
                 open();
 
-            List<Rate> lRates= new List<Rate>();
+            List<Candlestick> lRates= new List<Candlestick>();
 
             string sOperator = "<";
             string sSortDESC= "DESC";
@@ -80,9 +80,9 @@ namespace Server.DataBase
 
                 using (var reader = command.ExecuteReader())
                 {
-                    var list = new List<Rate>();
+                    var list = new List<Candlestick>();
                     while (reader.Read())
-                        list.Add(new Rate(
+                        list.Add(new Candlestick(
                             Convert.ToInt64(reader["Id"]),
                             Convert.ToDateTime(reader["Date"]),
                             Convert.ToSingle(reader["Open"]),
@@ -120,7 +120,7 @@ namespace Server.DataBase
 
 
         // Добавляем Rate
-        public static void addRate(Rate rate)
+        public static void addRate(Candlestick rate)
         {
             if (sqlConnection.State == ConnectionState.Closed)
                 open();
@@ -135,6 +135,61 @@ namespace Server.DataBase
                     new SqlParameter("High", rate.High),
                     new SqlParameter("Low", rate.Low),
                     new SqlParameter("TimeFrame", rate.TimeFrame)
+                });
+
+                using (var reader = command.ExecuteReader())
+                    reader.Close();
+            }
+        }
+
+
+        public static List<Tick> GetTicks(int Take, DateTime Date, long PairId)
+        {
+            if (sqlConnection.State == ConnectionState.Closed)
+                open();
+
+            List<Tick> result = new List<Tick>();
+
+            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM Ticks WHERE Date < (@Date) AND PairId = @PairId ORDER BY Date DESC", sqlConnection))
+            {
+                command.Parameters.AddRange(new[] {
+                    new SqlParameter("Take", Take),
+                    new SqlParameter("Date", Date.ToString("yyyy-MM-ddTHH:mm:ss.000")),
+                    new SqlParameter("PairId", PairId)
+                });
+
+                using (var reader = command.ExecuteReader())
+                {
+                    var list = new List<Tick>();
+                    while (reader.Read())
+                        list.Add(new Tick(
+                            Convert.ToInt64(reader["Id"]),
+                            Convert.ToInt64(reader["PairId"]),
+                            Convert.ToSingle(reader["Value"]),
+                            Convert.ToDateTime(reader["Date"])
+                        ));
+
+                    result.AddRange(list);
+                    reader.Close();
+                }
+            }
+
+            result.Reverse();
+
+            return result;
+        }
+
+        public static void AddTick(Tick Tick)
+        {
+            if (sqlConnection.State == ConnectionState.Closed)
+                open();
+
+            using (var command = new SqlCommand("INSERT INTO [Ticks] (PairId, Value, Date)VALUES(@PairId, @Value, @Date)", sqlConnection))
+            {
+                command.Parameters.AddRange(new[] {
+                    new SqlParameter("PairId", Tick.PairId),
+                    new SqlParameter("Value", Tick.Value),
+                    new SqlParameter("Date", Tick.Date)
                 });
 
                 using (var reader = command.ExecuteReader())

@@ -18,7 +18,8 @@ namespace Server
             DataBase.DataBase.open();
             Config.lPairs = DataBase.DataBase.getPairs();
 
-            // DataBase.TXTtoDB.Start();
+            // DataBase.TXTtoDB.Candlesticks();
+            // DataBase.TXTtoDB.Ticks();
 
             Simulation.Simulation.Start();
 
