@@ -11,13 +11,13 @@ namespace Server.Simulation
         private static List<Tick> ticksOfLastCandlestick = new List<Tick>();
         private static List<Candlestick> candlesticks = new List<Candlestick>();
 
+        const int pairId = 12;
+        const int timeFrame = 5;
         const int bigPeriod = 13;
         const int smallPeriod = 4;
 
         public static List<Bid> Start()
         {
-            const int pairId = 12;
-
             List<Response> result = new List<Response>();
 
             List<Pair> pairs = DataBase.DataBase.getPairs();
@@ -54,7 +54,7 @@ namespace Server.Simulation
 
                     if ((prevBigSMA - prevSmallSMA > 0) != ((currBigSMA - currSmallSMA) > 0))
                     {
-                        DateTime nextDate = Ticks[i].Date.AddMinutes(1);
+                        DateTime nextDate = Ticks[i].Date.AddMinutes(timeFrame);
 
                         Tick nextTick;
 
@@ -76,7 +76,7 @@ namespace Server.Simulation
                                     nextTick = tick;
                                 }
 
-                            if ((result.Count == 0 || (Ticks[i].Date - result.Last().Finish.Date).Minutes >= 1) && Ticks[i].Date.Hour > 8)
+                            if ((result.Count == 0 || (Ticks[i].Date - result.Last().Finish.Date).Minutes >= timeFrame) && Ticks[i].Date.Hour > 8)
                             {
                                 result.Add(new Bid(1,
                                     Ticks[i],
@@ -90,10 +90,8 @@ namespace Server.Simulation
 
                 AddTickToCandlesticks(Ticks[i]);
 
-                percent = (float)result.FindAll(x => x.Success).Count / result.Count * 100;
+                percent = (float) result.FindAll(x => x.Success).Count / result.Count * 100;
             }
-
-            percent = (float)result.FindAll(x => x.Success).Count / result.Count * 100;
 
             return result;
         }
@@ -103,12 +101,20 @@ namespace Server.Simulation
         {
             if (candlesticks.Count > 0)
             {
-                if (candlesticks.Last().Date.Year != Tick.Date.Year ||
-                    candlesticks.Last().Date.Month != Tick.Date.Month ||
-                    candlesticks.Last().Date.Day != Tick.Date.Day ||
-                    candlesticks.Last().Date.Hour != Tick.Date.Hour ||
-                    candlesticks.Last().Date.Minute != Tick.Date.Minute)
-                        CalcLastCandlestick();
+                bool DateEqual(DateTime PrevDate, DateTime CurDate)
+                {
+                    if (PrevDate.Year != CurDate.Year ||
+                        PrevDate.Month != CurDate.Month ||
+                        PrevDate.Day != CurDate.Day ||
+                        PrevDate.Hour != CurDate.Hour ||
+                        PrevDate.Minute != CurDate.Minute)
+                            return true;
+                    else
+                        return false;
+                }
+
+                if (DateEqual(candlesticks.Last().Date, Tick.Date) && Tick.Date.Minute % timeFrame == 0)
+                    CalcLastCandlestick();
 
                 ticksOfLastCandlestick.Add(Tick);
             }
