@@ -12,7 +12,7 @@ namespace Server.Simulation
         private static List<Candlestick> candlesticks = new List<Candlestick>();
 
         const int pairId = 12;
-        const int timeFrame = 5;
+        const int timeFrame = 1;
         const int bigPeriod = 13;
         const int smallPeriod = 4;
 
@@ -55,14 +55,15 @@ namespace Server.Simulation
                     if ((prevBigSMA - prevSmallSMA > 0) != ((currBigSMA - currSmallSMA) > 0))
                     {
                         DateTime nextDate = Ticks[i].Date.AddMinutes(timeFrame);
+                        List<Tick> nextTicks = new List<Tick>();
+
+                        for (int j = i + 1; Ticks[j].Date.CompareTo(nextDate) < 0  && j < Ticks.Count; j++)
+                            if (Ticks[j].Date.Day == nextDate.Day &&
+                                Ticks[j].Date.Hour == nextDate.Hour &&
+                                Ticks[j].Date.Minute == nextDate.Minute)
+                                    nextTicks.Add(Ticks[j]);
 
                         Tick nextTick;
-
-                        List<Tick> nextTicks = Ticks.FindAll(x => 
-                            x.Date.Day == nextDate.Day &&
-                            x.Date.Hour == nextDate.Hour &&
-                            x.Date.Minute == nextDate.Minute
-                        );
 
                         if (nextTicks.Count > 0)
                         {
