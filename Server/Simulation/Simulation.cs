@@ -12,7 +12,7 @@ namespace Server.Simulation
         private static List<Candlestick> candlesticks = new List<Candlestick>();
 
         const int pairId = 12;
-        const int timeFrame = 5;
+        const int timeFrame = 1;
         const int bigPeriod = 13;
         const int smallPeriod = 4;
 
@@ -22,7 +22,7 @@ namespace Server.Simulation
 
             List<Pair> pairs = DataBase.DataBase.getPairs();
 
-            List<Tick> ticks = DataBase.DataBase.GetTicks(10000000, DateTime.Now, pairId);
+            List<Tick> ticks = DataBase.DataBase.GetTicks("OlympTradeTicks", 10000000, DateTime.Now, pairId);
 
             return Analysis(ticks);
         }
@@ -39,18 +39,18 @@ namespace Server.Simulation
                 if (candlesticks.Count > bigPeriod)
                 {
                     float currBigSMA = Indicators.SMA.CalcTicks(
-                            candlesticks.GetRange(candlesticks.Count - bigPeriod - 1, bigPeriod),
+                            candlesticks.GetRange(candlesticks.Count - bigPeriod, bigPeriod),
                             Ticks[i]
                         );
 
                     float currSmallSMA = Indicators.SMA.CalcTicks(
-                            candlesticks.GetRange(candlesticks.Count - smallPeriod - 1, smallPeriod),
+                            candlesticks.GetRange(candlesticks.Count - smallPeriod, smallPeriod),
                             Ticks[i]
                         );
 
-                    float prevBigSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - bigPeriod - 1, bigPeriod));
+                    float prevBigSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - bigPeriod, bigPeriod));
 
-                    float prevSmallSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - smallPeriod - 1, smallPeriod));
+                    float prevSmallSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - smallPeriod, smallPeriod));
 
                     if ((prevBigSMA - prevSmallSMA > 0) != ((currBigSMA - currSmallSMA) > 0))
                     {
@@ -77,13 +77,18 @@ namespace Server.Simulation
                                     nextTick = tick;
                                 }
 
-                            if ((result.Count == 0 || (Ticks[i].Date - result.Last().Finish.Date).Minutes >= timeFrame) && Ticks[i].Date.Hour > 8)
+                            if ((result.Count == 0 || (Ticks[i].Date - result.Last().Finish.Date).Minutes >= timeFrame) && Ticks[i].Date.Hour > 5)
                             {
-                                result.Add(new Bid(1,
-                                    Ticks[i],
-                                    nextTick,
-                                    (Ticks[i].Value - nextTick.Value > 0) != (currBigSMA - currSmallSMA > 0))
-                                );
+                                //if (Candlestick.ShadowToBody(candlesticks.Last()) < 3 || Candlestick.ShadowToBody(candlesticks[candlesticks.Count - 2]) < 3)
+                                float d1 = Candlestick.GetBody(candlesticks.Last());
+                                float d2 = Candlestick.GetMeanBodyOfList(candlesticks.GetRange(candlesticks.Count - 15, 14));
+
+                                if (d1 > (float) (d2 / 5))
+                                    result.Add(new Bid(1,
+                                        Ticks[i],
+                                        nextTick,
+                                        (Ticks[i].Value - nextTick.Value > 0) != (currBigSMA - currSmallSMA > 0))
+                                    );
                             }
                         }
                     }

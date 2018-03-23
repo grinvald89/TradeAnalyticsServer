@@ -143,14 +143,14 @@ namespace Server.DataBase
         }
 
 
-        public static List<Tick> GetTicks(int Take, DateTime Date, long PairId)
+        public static List<Tick> GetTicks(string Table, int Take, DateTime Date, long PairId)
         {
             if (sqlConnection.State == ConnectionState.Closed)
                 open();
 
             List<Tick> result = new List<Tick>();
 
-            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM Ticks WHERE Date < (@Date) AND PairId = @PairId ORDER BY Date DESC", sqlConnection))
+            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM " + Table + @" WHERE Date < (@Date) AND PairId = @PairId ORDER BY Date DESC", sqlConnection))
             {
                 command.Parameters.AddRange(new[] {
                     new SqlParameter("Take", Take),
@@ -190,6 +190,26 @@ namespace Server.DataBase
                     new SqlParameter("PairId", Tick.PairId),
                     new SqlParameter("Value", Tick.Value),
                     new SqlParameter("Date", Tick.Date)
+                });
+
+                using (var reader = command.ExecuteReader())
+                    reader.Close();
+            }
+        }
+
+
+        public static void AddTickOlympTrade(Tick Tick, int Percent)
+        {
+            if (sqlConnection.State == ConnectionState.Closed)
+                open();
+
+            using (var command = new SqlCommand("INSERT INTO [OlympTradeTicks] (PairId, Value, Date, [Percent])VALUES(@PairId, @Value, @Date, @Percent)", sqlConnection))
+            {
+                command.Parameters.AddRange(new[] {
+                    new SqlParameter("PairId", Tick.PairId),
+                    new SqlParameter("Value", Tick.Value),
+                    new SqlParameter("Date", Tick.Date),
+                    new SqlParameter("Percent", Percent)
                 });
 
                 using (var reader = command.ExecuteReader())
