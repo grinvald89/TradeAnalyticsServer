@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using System.Linq;
 using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -110,6 +111,7 @@ namespace Server.WebServer
 
         static string GetRates(string Url)
         {
+            /*
             bool isForward = false;
 
             DateTime date = DateTime.Today;
@@ -127,14 +129,89 @@ namespace Server.WebServer
                 Convert.ToInt32(GetParam("timeframe", Url)),
                 isForward
             );
+            */
+
+            candlesticks.Clear();
+
+            List<Tick> ticks = DataBase.DataBase.GetTicks("OlympTradeTicks", 10000000, DateTime.Now, 12);
+
+            foreach (Tick tick in ticks)
+                AddTickToCandlesticks(tick);
+
+
 
             List<ResponseRate> Result = new List<ResponseRate>();
 
-            foreach (var item in lResult)
+            foreach (var item in candlesticks)
                 Result.Add(new ResponseRate(item.PairId, item.Date.ToString(), item.Open, item.Close, item.High, item.Low));
 
             return new JavaScriptSerializer().Serialize(Result);
         }
+
+        #region FormCandlestick
+        private static List<Tick> ticksOfLastCandlestick = new List<Tick>();
+        private static List<Candlestick> candlesticks = new List<Candlestick>();
+
+        const int timeFrame = 1;
+
+        private static void AddTickToCandlesticks(Tick Tick)
+        {
+            if (candlesticks.Count > 0)
+            {
+                bool DateEqual(DateTime PrevDate, DateTime CurDate)
+                {
+                    if (PrevDate.Year != CurDate.Year ||
+                        PrevDate.Month != CurDate.Month ||
+                        PrevDate.Day != CurDate.Day ||
+                        PrevDate.Hour != CurDate.Hour ||
+                        PrevDate.Minute != CurDate.Minute)
+                        return true;
+                    else
+                        return false;
+                }
+
+                if (DateEqual(candlesticks.Last().Date, Tick.Date) && Tick.Date.Minute % timeFrame == 0)
+                    CalcLastCandlestick();
+
+                ticksOfLastCandlestick.Add(Tick);
+            }
+            else
+            {
+                if (ticksOfLastCandlestick.Count > 0 && candlesticks.Count == 0 && ticksOfLastCandlestick.Last().Date.Second > Tick.Date.Second)
+                    CalcLastCandlestick();
+
+                ticksOfLastCandlestick.Add(Tick);
+            }
+        }
+
+
+        private static void CalcLastCandlestick()
+        {
+            float high = ticksOfLastCandlestick[0].Value;
+            float low = ticksOfLastCandlestick[0].Value;
+
+            foreach (Tick tick in ticksOfLastCandlestick)
+            {
+                if (tick.Value > high)
+                    high = tick.Value;
+
+                if (tick.Value < low)
+                    low = tick.Value;
+            }
+
+            candlesticks.Add(new Candlestick(
+                ticksOfLastCandlestick[0].PairId,
+                ticksOfLastCandlestick[0].Date,
+                ticksOfLastCandlestick[0].Value,
+                ticksOfLastCandlestick.Last().Value,
+                high,
+                low,
+                timeFrame)
+            );
+
+            ticksOfLastCandlestick.Clear();
+        }
+        #endregion
 
         static string GetParam(string Name, string Url)
         {
