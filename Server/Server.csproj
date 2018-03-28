@@ -61,6 +61,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Bid.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="DataBase\DataBase.cs" />
     <Compile Include="DataBase\TXTtoDB.cs" />
@@ -75,8 +76,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Candlestick.cs" />
-    <Compile Include="Simulation\Response.cs" />
     <Compile Include="Simulation\Simulation.cs" />
+    <Compile Include="Simulation\Strategies.cs" />
     <Compile Include="Tick.cs" />
     <Compile Include="WebServer\Client.cs" />
     <Compile Include="WebServer\Server.cs" />

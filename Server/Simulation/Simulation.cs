@@ -29,18 +29,8 @@ namespace Server.Simulation
 
         const int pairId = 12;
 
-        /*
-        const int timeFrame = 1;
-        const int bigPeriod = 13;
-        const int smallPeriod = 4;
-        */
-
         public static List<Bid> Start()
         {
-            List<Response> result = new List<Response>();
-
-            List<Pair> pairs = DataBase.DataBase.getPairs();
-
             List<Tick> ticks = DataBase.DataBase.GetTicks("OlympTradeTicks", 10000000, DateTime.Now, pairId);
 
             Tick _tick = ticks.First();
@@ -74,7 +64,7 @@ namespace Server.Simulation
             {
                 for (int j = 2; j <= 10; j++)
                 {
-                    List<Bid> res = Analysis(ticks, i, j, 15);
+                    List<Bid> res = Analysis(ticks, i, j, 1);
 
                     results.Add(new Result(i, j, (float) res.FindAll(x => x.Success).Count / res.Count * 100, res.Count));
                 }
@@ -94,7 +84,7 @@ namespace Server.Simulation
                 if (_result.Percent < 57 && _result.Percent > 43)
                     bidsFails += _result.Count;
 
-                if (_result.Percent >= 43)
+                if (_result.Percent <= 43)
                     bidsInSuccess += _result.Count;
             }
 
@@ -104,75 +94,23 @@ namespace Server.Simulation
 
         private static List<Bid> Analysis(List<Tick> Ticks, int BigSMAPeriod, int SmallSMAPeriod, int TimeFrame)
         {
-            float percent;
-
             List<Bid> result = new List<Bid>();
 
-            for (int i = 0; i < Ticks.Count; i++)
+            /*for (int i = 0; i < Ticks.Count; i++)
             {
-                if (candlesticks.Count > BigSMAPeriod)
-                {
-                    float currBigSMA = Indicators.SMA.CalcTicks(
-                            candlesticks.GetRange(candlesticks.Count - BigSMAPeriod, BigSMAPeriod),
-                            Ticks[i]
-                        );
+                if (Candlesticks.Count > BigSMAPeriod)
+                    Strategies.IntersectionSMA();
 
-                    float currSmallSMA = Indicators.SMA.CalcTicks(
-                            candlesticks.GetRange(candlesticks.Count - SmallSMAPeriod, SmallSMAPeriod),
-                            Ticks[i]
-                        );
-
-                    float prevBigSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - BigSMAPeriod, BigSMAPeriod));
-
-                    float prevSmallSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - SmallSMAPeriod, SmallSMAPeriod));
-
-                    if ((prevBigSMA - prevSmallSMA > 0) != ((currBigSMA - currSmallSMA) > 0) && Ticks[i].Date.Hour > 5)
-                    {
-                        DateTime nextDate = Ticks[i].Date.AddMinutes(TimeFrame);
-                        nextDate.AddSeconds(Ticks[i].Date.Second);
-                        List<Tick> nextTicks = new List<Tick>();
-
-                        for (int j = i + 1; j < Ticks.Count - 1 && Ticks[j].Date.CompareTo(nextDate) < 0; j++)
-                            if (Ticks[j].Date.Day == nextDate.Day &&
-                                Ticks[j].Date.Hour == nextDate.Hour &&
-                                Ticks[j].Date.Minute == nextDate.Minute)
-                                    nextTicks.Add(Ticks[j]);
-
-                        Tick nextTick;
-
-                        if (nextTicks.Count > 0)
-                        {
-                            nextTick = nextTicks[0];
-                            int diffMillisecond = Math.Abs(Ticks[i].Date.Millisecond - nextTicks[0].Date.Millisecond);
-
-                            foreach (Tick tick in nextTicks)
-                                if (Math.Abs(tick.Date.Millisecond - Ticks[i].Date.Millisecond) < diffMillisecond)
-                                {
-                                    diffMillisecond = Math.Abs(tick.Date.Millisecond - Ticks[i].Date.Millisecond);
-                                    nextTick = tick;
-                                }
-
-                            if ((result.Count == 0 || (Ticks[i].Date - result.Last().Finish.Date).Minutes >= TimeFrame))
-                            {
-                                //if (Candlestick.ShadowToBody(candlesticks.Last()) < 3 || Candlestick.ShadowToBody(candlesticks[candlesticks.Count - 2]) < 3)
-                                // float d1 = Candlestick.GetBody(candlesticks.Last());
-                                // float d2 = Candlestick.GetMeanBodyOfList(candlesticks.GetRange(candlesticks.Count - 15, 14));
-
-                                // if (d1 > (float) (d2 / 5))
-                                    result.Add(new Bid(1,
-                                        Ticks[i],
-                                        nextTicks.Last(),
-                                        (Ticks[i].Value - nextTicks.Last().Value > 0) != (currBigSMA - currSmallSMA > 0))
-                                    );
-                            }
-                        }
-                    }
+                if ((result.Count == 0 || (Ticks[CurrentTickIndex].Date - result.Last().Finish.Date).Minutes >= TimeFrame)) {
+                    result.Add(new Bid(1,
+                        Ticks[CurrentTickIndex],
+                        nextTicks.Last(),
+                        (Ticks[CurrentTickIndex].Value - nextTicks.Last().Value > 0) != (currBigSMA - currSmallSMA > 0))
+                    );
                 }
-
+                
                 AddTickToCandlesticks(Ticks[i], TimeFrame);
-
-                // percent = (float) result.FindAll(x => x.Success).Count / result.Count * 100;
-            }
+            }*/
 
             return result;
         }
