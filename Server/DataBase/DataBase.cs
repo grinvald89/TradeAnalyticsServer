@@ -150,11 +150,12 @@ namespace Server.DataBase
 
             List<Tick> result = new List<Tick>();
 
-            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM " + Table + @" WHERE Date < (@Date) AND PairId = @PairId ORDER BY Date DESC", sqlConnection))
+            using (var command = new SqlCommand(@"SELECT TOP (@Take) * FROM " + Table + @" WHERE Date > (@DateStart) AND Date < (@DateFinish) AND PairId = @PairId ORDER BY Date DESC", sqlConnection))
             {
                 command.Parameters.AddRange(new[] {
                     new SqlParameter("Take", Take),
-                    new SqlParameter("Date", Date.ToString("yyyy-MM-ddTHH:mm:ss.000")),
+                    new SqlParameter("DateStart", Date.ToString("yyyy-MM-ddTHH:mm:ss.000")),
+                    new SqlParameter("DateFinish", Date.AddHours(24).ToString("yyyy-MM-ddTHH:mm:ss.000")),
                     new SqlParameter("PairId", PairId)
                 });
 

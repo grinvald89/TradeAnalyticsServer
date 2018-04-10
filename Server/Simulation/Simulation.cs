@@ -6,172 +6,297 @@ using System.Threading.Tasks;
 
 namespace Server.Simulation
 {
+    class NextResult
+    {
+        public float Percent;
+        public int Count;
+        public float FullPercent;
+        public int FullCount;
+        public List<Bid> FullBids;
+        public List<Bid> FirstBids;
+        public List<Result> ResultList;
+    }
+
+    class Day
+    {
+        public float Percent;
+        public int Count;
+        public List<Bid> Bids;
+
+        public Day(float Percent, int Count, List<Bid> Bids)
+        {
+            this.Percent = Percent;
+            this.Count = Count;
+            this.Bids = Bids;
+        }
+    }
+
     class Result
     {
         public int BigSMAPeriod;
         public int SmallSMAPeriod;
         public float Percent;
         public int Count;
+        public int K;
+        public List<Day> Days;
+        public float ShadowToBody;
 
-        public Result(int BigSMAPeriod, int SmallSMAPeriod, float Percent, int Count)
+        public Result(int BigSMAPeriod, int SmallSMAPeriod, int K, Day Day, float ShadowToBody)
         {
             this.BigSMAPeriod = BigSMAPeriod;
             this.SmallSMAPeriod = SmallSMAPeriod;
-            this.Percent = Percent;
-            this.Count = Count;
+            this.K = K;
+            Days = new List<Day>();
+            Days.Add(Day);
+            this.ShadowToBody = ShadowToBody;
         }
     }
 
     class Simulation
     {
+        private static List<Tick> ticks = new List<Tick>();
         private static List<Tick> ticksOfLastCandlestick = new List<Tick>();
         private static List<Candlestick> candlesticks = new List<Candlestick>();
 
+        const int MaxBigSMAPeriod = 60;
+
         const int pairId = 12;
 
-        /*
-        const int timeFrame = 1;
-        const int bigPeriod = 13;
-        const int smallPeriod = 4;
-        */
-
-        public static List<Bid> Start()
+        public static void Start()
         {
-            List<Response> result = new List<Response>();
+            DateTime startDate = new DateTime(2018, 03, 23);
+            DateTime finishDate = new DateTime(2018, 04, 09);
 
-            List<Pair> pairs = DataBase.DataBase.getPairs();
-
-            List<Tick> ticks = DataBase.DataBase.GetTicks("OlympTradeTicks", 10000000, DateTime.Now, pairId);
-
-            Tick _tick = ticks.First();
-
-            List<int> indexes = new List<int>();
-
-            for (int i = 1; i < ticks.Count; i++)
-            {
-                if (_tick.Date.Year == ticks[i].Date.Year &&
-                    _tick.Date.Month == ticks[i].Date.Month &&
-                    _tick.Date.Day == ticks[i].Date.Day &&
-                    _tick.Date.Hour == ticks[i].Date.Hour &&
-                    _tick.Date.Minute == ticks[i].Date.Minute &&
-                    _tick.Date.Second == ticks[i].Date.Second)
-                {
-                    if (_tick.Value == ticks[i].Value)
-                        indexes.Add(i);
-                    else
-                        _tick = ticks[i];
-                }
-                else
-                    _tick = ticks[i];
-            }
-
-            for (int i = indexes.Count - 1; i >= 0; i--)
-                ticks.RemoveAt(indexes[i]);
+            int dayCount = (finishDate - startDate).Days;
 
             List<Result> results = new List<Result>();
 
-            for (int i = 12; i <= 60; i++)
+            for (int day = 0; day <= (finishDate - startDate).Days; day++)
             {
-                for (int j = 2; j <= 10; j++)
+                try
                 {
-                    List<Bid> res = Analysis(ticks, i, j, 15);
+                    ticks = DataBase.DataBase.GetTicks("OlympTradeTicks", 10000000, startDate.AddDays(day), pairId);
+                }
+                catch
+                {
+                    ticks.Clear();
+                }                
 
-                    results.Add(new Result(i, j, (float) res.FindAll(x => x.Success).Count / res.Count * 100, res.Count));
+                if (ticks.Count > 0)
+                {
+                    RemoveSameTicks();
+
+                    for (int bigSMA = 12; bigSMA <= MaxBigSMAPeriod; bigSMA++)
+                        for (int smallSMA = 2; smallSMA <= 10; smallSMA++)
+                            for (int j = 0; j < 8; j++)
+                                for (int k = 1; k <= 3; k++)
+                                {
+                                    List<Bid> res = Analysis(bigSMA, smallSMA, 5, k, j);
+
+                                    Day resultDay = new Day((float)res.FindAll(x => x.Success).Count / res.Count * 100, res.Count, res);
+
+                                    int resultIndex = results.FindIndex(x => x.BigSMAPeriod == bigSMA && x.SmallSMAPeriod == smallSMA && x.K == k && x.ShadowToBody == j);
+
+                                    if (resultIndex != -1)
+                                        results[resultIndex].Days.Add(resultDay);
+                                    else
+                                        results.Add(new Result(bigSMA, smallSMA, k, resultDay, j));
+                                }
                 }
             }
 
-            List<Result> results1 = results.OrderByDescending(x => x.Percent).ToList();
 
-            int bidsSuccess = 0;
-            int bidsFails = 0;
-            int bidsInSuccess = 0;
-
-            foreach (Result _result in results)
+            foreach (Result result in results)
             {
-                if (_result.Percent >= 57)
-                    bidsSuccess += _result.Count;
+                List<Bid> bids = new List<Bid>();
 
-                if (_result.Percent < 57 && _result.Percent > 43)
-                    bidsFails += _result.Count;
+                foreach (Day _day in result.Days)
+                    bids.AddRange(_day.Bids);
 
-                if (_result.Percent >= 43)
-                    bidsInSuccess += _result.Count;
+                result.Percent = (float) bids.FindAll(x => x.Success).Count / bids.Count;
+                result.Count = bids.Count;
             }
 
-            return Analysis(ticks, 13, 4, 1);
+
+            float CalcPercentForDays(List<Day> Days, int StartIndexDay, int FinishIndexDay)
+            {
+                List<Bid> bids = new List<Bid>();
+
+                for (int i = StartIndexDay; i < FinishIndexDay && i < Days.Count; i++)
+                    bids.AddRange(Days[i].Bids);
+
+                return (float) bids.FindAll(x => x.Success).Count / bids.Count;
+            }
+
+            NextResult CalcPercentForNextDays(List<Result> List, int Day, int BidsCount)
+            {
+                if (Day < List.First().Days.Count)
+                {
+                    List<Bid> fullBids = new List<Bid>();
+                    List<Bid> bids = new List<Bid>();
+
+                    for (int i = 0; i < BidsCount; i++)
+                    {
+                        fullBids.AddRange(List[i].Days[Day].Bids);
+
+                        if (List[i].Days[Day].Bids.Count > 0)
+                            bids.Add(List[i].Days[Day].Bids.First());
+                    }
+
+                    NextResult res = new NextResult();
+
+                    res.FullPercent = (float) fullBids.FindAll(x => x.Success).Count / fullBids.Count;
+                    res.FullCount = fullBids.Count;
+
+                    res.Percent = (float) bids.FindAll(x => x.Success).Count / bids.Count;
+                    res.Count = bids.Count;
+
+                    res.FullBids = fullBids;
+                    res.FirstBids = bids;
+
+                    res.ResultList = List;
+
+                    return res;
+                }
+                else
+                    return null;
+            }
+
+
+            List<Result> resultsOverall = results.OrderByDescending(x => x.Percent).ToList();
+
+            List<Result> results3day = results.OrderByDescending(x => CalcPercentForDays(x.Days, 0, 3)).ToList();
+            NextResult day3analys10 = CalcPercentForNextDays(results3day, 3, 10);
+            NextResult day3analys100 = CalcPercentForNextDays(results3day, 3, 100);
+
+
+            List<Result> results4day = results.OrderByDescending(x => CalcPercentForDays(x.Days, 0, 4)).ToList();
+            NextResult day4analys10 = CalcPercentForNextDays(results4day, 4, 10);
+            NextResult day4analys100 = CalcPercentForNextDays(results4day, 4, 100);
+
+            
+            List<Result> results5day = results.OrderByDescending(x => CalcPercentForDays(x.Days, 0, 5)).ToList();
+            NextResult day5analys10 = CalcPercentForNextDays(results5day, 5, 10);
+            NextResult day5analys100 = CalcPercentForNextDays(results5day, 5, 100);
+
+
+            List<Result> results6day = results.OrderByDescending(x => CalcPercentForDays(x.Days, 0, 6)).ToList();
+            NextResult day6analys10 = CalcPercentForNextDays(results6day, 6, 10);
+            NextResult day6analys100 = CalcPercentForNextDays(results6day, 6, 100);
+
+
+            List<Result> results7day = results.OrderByDescending(x => CalcPercentForDays(x.Days, 0, 7)).ToList();
+            NextResult day7analys10 = CalcPercentForNextDays(results7day, 7, 10);
+            NextResult day7analys100 = CalcPercentForNextDays(results7day, 7, 100);
+
+
+            List<Result> results8day = results.OrderByDescending(x => CalcPercentForDays(x.Days, 0, 8)).ToList();
+            NextResult day8analys10 = CalcPercentForNextDays(results8day, 8, 10);
+            NextResult day8analys100 = CalcPercentForNextDays(results8day, 8, 100);
+
+
+            List<NextResult> CalcRepeatabilityAnalysis(List<Result> List, int Period, int BidsCount)
+            {
+                List<NextResult> resultList = new List<NextResult>();
+
+                int DayCount = List.First().Days.Count;
+
+                for (int i = 0; i < DayCount - Period; i++)
+                    resultList.Add(CalcPercentForNextDays(
+                        List.OrderByDescending(x => CalcPercentForDays(x.Days, i, i + Period)).ToList(),
+                        i + Period,
+                        BidsCount
+                    ));
+
+                return resultList;
+            }
+
+            int dayCountInList = resultsOverall.First().Days.Count;
+
+            List<NextResult> repeatabilityAnalysis2Day10 = CalcRepeatabilityAnalysis(resultsOverall, 2, 10);
+            List<NextResult> repeatabilityAnalysis2Day100 = CalcRepeatabilityAnalysis(resultsOverall, 2, 100);
+
+
+            List<NextResult> repeatabilityAnalysis3Day10 = CalcRepeatabilityAnalysis(resultsOverall, 3, 10);
+            List<NextResult> repeatabilityAnalysis3Day100 = CalcRepeatabilityAnalysis(resultsOverall, 3, 100);
+
+
+            List<NextResult> repeatabilityAnalysis4Day10 = CalcRepeatabilityAnalysis(resultsOverall, 4, 10);
+            List<NextResult> repeatabilityAnalysis4Day100 = CalcRepeatabilityAnalysis(resultsOverall, 4, 100);
+
+            List<Result> l4_1 = resultsOverall.OrderByDescending(x => CalcPercentForDays(x.Days, dayCountInList - 4, dayCountInList)).ToList();
+            List<Result> l4_2 = resultsOverall.OrderByDescending(x => CalcPercentForDays(x.Days, dayCountInList - 5, dayCountInList - 1)).ToList();
+
+
+            List<NextResult> repeatabilityAnalysis5Day10 = CalcRepeatabilityAnalysis(resultsOverall, 5, 10);
+            List<NextResult> repeatabilityAnalysis5Day100 = CalcRepeatabilityAnalysis(resultsOverall, 5, 100);
+
+            List<Result> l5_1 = resultsOverall.OrderByDescending(x => CalcPercentForDays(x.Days, dayCountInList - 5, dayCountInList)).ToList();
+            List<Result> l5_2 = resultsOverall.OrderByDescending(x => CalcPercentForDays(x.Days, dayCountInList - 6, dayCountInList - 1)).ToList();
+
+
+            List<NextResult> repeatabilityAnalysis6Day10 = CalcRepeatabilityAnalysis(resultsOverall, 6, 10);
+            List<NextResult> repeatabilityAnalysis6Day100 = CalcRepeatabilityAnalysis(resultsOverall, 6, 100);
+
+            List<Result> l6_1 = resultsOverall.OrderByDescending(x => CalcPercentForDays(x.Days, dayCountInList - 6, dayCountInList)).ToList();
+            List<Result> l6_2 = resultsOverall.OrderByDescending(x => CalcPercentForDays(x.Days, dayCountInList - 7, dayCountInList - 1)).ToList();
+
+
+            List<NextResult> repeatabilityAnalysis7Day10 = CalcRepeatabilityAnalysis(resultsOverall, 7, 10);
+            List<NextResult> repeatabilityAnalysis7Day100 = CalcRepeatabilityAnalysis(resultsOverall, 7, 100);
         }
 
-
-        private static List<Bid> Analysis(List<Tick> Ticks, int BigSMAPeriod, int SmallSMAPeriod, int TimeFrame)
+        /*
+         * K - сколько свечей пропускаем, 1 - не пропускаем
+         */
+        private static List<Bid> Analysis(int BigSMAPeriod, int SmallSMAPeriod, int TimeFrame, int K, int ShadowToBody)
         {
-            float percent;
-
             List<Bid> result = new List<Bid>();
 
-            for (int i = 0; i < Ticks.Count; i++)
+            for (int i = 0; i < ticks.Count; i++)
             {
                 if (candlesticks.Count > BigSMAPeriod)
                 {
                     float currBigSMA = Indicators.SMA.CalcTicks(
                             candlesticks.GetRange(candlesticks.Count - BigSMAPeriod, BigSMAPeriod),
-                            Ticks[i]
+                            ticks[i]
                         );
 
                     float currSmallSMA = Indicators.SMA.CalcTicks(
                             candlesticks.GetRange(candlesticks.Count - SmallSMAPeriod, SmallSMAPeriod),
-                            Ticks[i]
+                            ticks[i]
                         );
 
                     float prevBigSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - BigSMAPeriod, BigSMAPeriod));
 
                     float prevSmallSMA = Indicators.SMA.CalcTicks(candlesticks.GetRange(candlesticks.Count - SmallSMAPeriod, SmallSMAPeriod));
 
-                    if ((prevBigSMA - prevSmallSMA > 0) != ((currBigSMA - currSmallSMA) > 0) && Ticks[i].Date.Hour > 5)
+                    if ((prevBigSMA - prevSmallSMA > 0) != ((currBigSMA - currSmallSMA) > 0) && ticks[i].Date.Hour > 5)
                     {
-                        DateTime nextDate = Ticks[i].Date.AddMinutes(TimeFrame);
-                        nextDate.AddSeconds(Ticks[i].Date.Second);
-                        List<Tick> nextTicks = new List<Tick>();
+                        float _k = (float) (1 + ShadowToBody * 0.25);
+                        float _shadowToBody = Candlestick.GetShadowToBody(candlesticks.Last());
 
-                        for (int j = i + 1; j < Ticks.Count - 1 && Ticks[j].Date.CompareTo(nextDate) < 0; j++)
-                            if (Ticks[j].Date.Day == nextDate.Day &&
-                                Ticks[j].Date.Hour == nextDate.Hour &&
-                                Ticks[j].Date.Minute == nextDate.Minute)
-                                    nextTicks.Add(Ticks[j]);
-
-                        Tick nextTick;
-
-                        if (nextTicks.Count > 0)
+                        if (_shadowToBody > _k && _shadowToBody < (float) (_k + 0.25))
                         {
-                            nextTick = nextTicks[0];
-                            int diffMillisecond = Math.Abs(Ticks[i].Date.Millisecond - nextTicks[0].Date.Millisecond);
+                            Tick resultTick = GetNextTick(i, TimeFrame, K);
 
-                            foreach (Tick tick in nextTicks)
-                                if (Math.Abs(tick.Date.Millisecond - Ticks[i].Date.Millisecond) < diffMillisecond)
-                                {
-                                    diffMillisecond = Math.Abs(tick.Date.Millisecond - Ticks[i].Date.Millisecond);
-                                    nextTick = tick;
-                                }
-
-                            if ((result.Count == 0 || (Ticks[i].Date - result.Last().Finish.Date).Minutes >= TimeFrame))
-                            {
-                                //if (Candlestick.ShadowToBody(candlesticks.Last()) < 3 || Candlestick.ShadowToBody(candlesticks[candlesticks.Count - 2]) < 3)
-                                // float d1 = Candlestick.GetBody(candlesticks.Last());
-                                // float d2 = Candlestick.GetMeanBodyOfList(candlesticks.GetRange(candlesticks.Count - 15, 14));
-
-                                // if (d1 > (float) (d2 / 5))
-                                    result.Add(new Bid(1,
-                                        Ticks[i],
-                                        nextTicks.Last(),
-                                        (Ticks[i].Value - nextTicks.Last().Value > 0) != (currBigSMA - currSmallSMA > 0))
-                                    );
-                            }
+                            if (resultTick != null && (result.Count == 0 || (ticks[i].Date - result.Last().Finish.Date).Minutes >= TimeFrame))
+                                result.Add(new Bid(
+                                    TimeFrame,
+                                    ticks[i],
+                                    resultTick,
+                                    (ticks[i].Value - resultTick.Value > 0) != (currBigSMA - currSmallSMA > 0),
+                                    BigSMAPeriod,
+                                    SmallSMAPeriod,
+                                    K,
+                                    (float) (1 + ShadowToBody * 0.25),
+                                    (float) (1.25 + ShadowToBody * 0.25)
+                                ));
                         }
                     }
                 }
 
-                AddTickToCandlesticks(Ticks[i], TimeFrame);
-
-                // percent = (float) result.FindAll(x => x.Success).Count / result.Count * 100;
+                AddTickToCandlesticks(ticks[i], TimeFrame);
             }
 
             return result;
@@ -232,7 +357,53 @@ namespace Server.Simulation
                 TimeFrame)
             );
 
+            if (candlesticks.Count > MaxBigSMAPeriod)
+                candlesticks.RemoveAt(0);
+
             ticksOfLastCandlestick.Clear();
+        }
+
+        private static void RemoveSameTicks()
+        {
+            Tick tick = ticks.First();
+
+            List<int> removeIndexes = new List<int>();
+
+            for (int i = 1; i < ticks.Count; i++)
+            {
+                if (tick.Date.Year == ticks[i].Date.Year &&
+                    tick.Date.Month == ticks[i].Date.Month &&
+                    tick.Date.Day == ticks[i].Date.Day &&
+                    tick.Date.Hour == ticks[i].Date.Hour &&
+                    tick.Date.Minute == ticks[i].Date.Minute &&
+                    tick.Date.Second == ticks[i].Date.Second)
+                {
+                    if (tick.Value == ticks[i].Value)
+                        removeIndexes.Add(i);
+                    else
+                        tick = ticks[i];
+                }
+                else
+                    tick = ticks[i];
+            }
+
+            for (int i = removeIndexes.Count - 1; i >= 0; i--)
+                ticks.RemoveAt(removeIndexes[i]);
+        }
+
+        private static Tick GetNextTick(int CurrentIndex, int TimeFrame, int K)
+        {
+            DateTime nextDate = ticks[CurrentIndex].Date.AddMinutes(TimeFrame * K);
+            nextDate.AddSeconds(ticks[CurrentIndex].Date.Second + 2);
+            List<Tick> nextTicks = new List<Tick>();
+
+            for (int i = CurrentIndex + 1; i < ticks.Count - 1 && ticks[i].Date.CompareTo(nextDate) < 0; i++)
+                if (ticks[i].Date.Day == nextDate.Day &&
+                    ticks[i].Date.Hour == nextDate.Hour &&
+                    ticks[i].Date.Minute == nextDate.Minute)
+                        nextTicks.Add(ticks[i]);
+
+            return  (nextTicks.Count > 0) ? nextTicks.Last() : null;
         }
     }
 }

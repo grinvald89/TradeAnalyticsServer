@@ -26,7 +26,10 @@ namespace Server
 
         public static float GetShadowToBody(Candlestick Candlestick)
         {
-            return (float) (Candlestick.High - Candlestick.Low) / Math.Abs(Candlestick.Open - Candlestick.Close);
+            if (Math.Abs(Candlestick.Open - Candlestick.Close) == 0)
+                return 0;
+            else
+                return (float) (Candlestick.High - Candlestick.Low) / Math.Abs(Candlestick.Open - Candlestick.Close);
         }
 
         public static float GetBody(Candlestick Candlestick)
