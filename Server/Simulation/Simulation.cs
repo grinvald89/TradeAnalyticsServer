@@ -62,19 +62,16 @@ namespace Server.Simulation
 
         const int pairId = 12;
         const int MaxBigSMAPeriod = 60;
-        const float KShadowToBody = (float)0.25;
+        const float KShadowToBody = (float) 0.25;
 
-        public static void Start()
+        public static void StartHistoryAnalysis(DateTime StartDate, DateTime FinishDate)
         {
-            DateTime startDate = new DateTime(2018, 03, 23);
-            DateTime finishDate = new DateTime(2018, 04, 09);
-
             List<Result> results = new List<Result>();
 
             // Перебираем Тики по дням
-            for (int day = 0; day <= (finishDate - startDate).Days; day++)
+            for (int day = 0; day <= (FinishDate - StartDate).Days; day++)
             {
-                ticks = DataBase.DataBase.GetTicks("OlympTradeTicks", 10000000, startDate.AddDays(day), pairId);
+                ticks = DataBase.DataBase.GetTicks("OlympTradeTicks", 10000000, StartDate.AddDays(day), pairId);
 
                 if (ticks.Count > 0)
                 {
@@ -116,10 +113,9 @@ namespace Server.Simulation
                 result.Count = bids.Count;
             }
 
-
             List<Result> resultsOverall = results.OrderByDescending(x => x.Percent).ToList();
 
-
+            #region Проверяем воспроизведение наилучших стратегий
             List<NextResult> repeatabilityAnalysis2Day10 = CalcReproducibilityAnalysis(resultsOverall, 2, 10);
             List<NextResult> repeatabilityAnalysis2Day100 = CalcReproducibilityAnalysis(resultsOverall, 2, 100);
 
@@ -137,11 +133,9 @@ namespace Server.Simulation
 
             List<NextResult> repeatabilityAnalysis7Day10 = CalcReproducibilityAnalysis(resultsOverall, 7, 10);
             List<NextResult> repeatabilityAnalysis7Day100 = CalcReproducibilityAnalysis(resultsOverall, 7, 100);
+            #endregion
         }
 
-        /*
-         * K - сколько свечей пропускаем, 1 - не пропускаем
-         */
         private static List<Bid> HistoryAnalysis(int BigSMAPeriod, int SmallSMAPeriod, int TimeFrame, int K, int ShadowToBody)
         {
             List<Bid> result = new List<Bid>();
@@ -202,7 +196,6 @@ namespace Server.Simulation
 
             return result;
         }
-
 
         private static void AddTickToCandlesticks(Tick Tick, int TimeFrame)
         {

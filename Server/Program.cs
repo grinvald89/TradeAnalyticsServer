@@ -21,7 +21,10 @@ namespace Server
             // DataBase.TXTtoDB.Candlesticks();
             // DataBase.TXTtoDB.Ticks();
 
-            Simulation.Simulation.Start();
+            Simulation.Simulation.StartHistoryAnalysis(
+                new DateTime(2018, 03, 23),
+                new DateTime(2018, 04, 09)
+            );
 
             // ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
 

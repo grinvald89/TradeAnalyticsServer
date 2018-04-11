@@ -6,20 +6,6 @@ using System.Threading.Tasks;
 
 namespace Server.Simulation
 {
-    class Statistics
-    {
-        public int TimeFrame;
-        public float Percent;
-        public int Count;
-
-        public Statistics(int TimeFrame, float Percent, int Count)
-        {
-            this.TimeFrame = TimeFrame;
-            this.Percent = Percent;
-            this.Count = Count;
-        }
-    }
-
     /*
      * @Type TimeFrame - Таймфрейм, на котором происходит анализ
      * @Type Start - Тик, на котором делаем ставку
@@ -56,34 +42,6 @@ namespace Server.Simulation
             this.K = K;
             this.ShadowToBodyMin = ShadowToBodyMin;
             this.ShadowToBodyMax = ShadowToBodyMax;
-        }
-    }
-
-    class Mounth
-    {
-        public int Number;
-        public List<Statistics> Statistics;
-
-        public Mounth(int Number)
-        {
-            this.Number = Number;
-        }
-    }
-
-    class Response
-    {
-        public long PairId;
-        public List<Bid> Bids;
-
-        public Mounth[] Mounth;
-        public Statistics[] Overall;
-
-        public Response(long PairId)
-        {
-            this.PairId = PairId;
-            this.Bids = new List<Bid>();
-            this.Mounth = new Mounth[12];
-            this.Overall = new Statistics[7];
         }
     }
 }
