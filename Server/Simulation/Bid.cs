@@ -24,6 +24,7 @@ namespace Server.Simulation
         public int TimeFrame;
         public Tick Start;
         public Tick Finish;
+        public string Direction;
         public bool Success;
         public int BigSMA;
         public int SmallSMA;
@@ -31,11 +32,12 @@ namespace Server.Simulation
         public float ShadowToBodyMin;
         public float ShadowToBodyMax;
 
-        public Bid(int TimeFrame, Tick Start, Tick Finish, bool Success, int BigSMA, int SmallSMA, int K, float ShadowToBodyMin, float ShadowToBodyMax)
+        public Bid(int TimeFrame, Tick Start, Tick Finish, string Direction, bool Success, int BigSMA, int SmallSMA, int K, float ShadowToBodyMin, float ShadowToBodyMax)
         {
             this.TimeFrame = TimeFrame;
             this.Start = Start;
             this.Finish = Finish;
+            this.Direction = Direction;
             this.Success = Success;
             this.BigSMA = BigSMA;
             this.SmallSMA = SmallSMA;

@@ -14,16 +14,16 @@ namespace Server.Simulation
         public int FullCount;
         public List<Bid> FullBids;
         public List<Bid> FirstBids;
-        public List<Result> ResultList;
+        public List<ComboSMA> ResultList;
     }
 
-    class Day
+    class DayResult
     {
         public float Percent;
         public int Count;
         public List<Bid> Bids;
 
-        public Day(float Percent, int Count, List<Bid> Bids)
+        public DayResult(float Percent, int Count, List<Bid> Bids)
         {
             this.Percent = Percent;
             this.Count = Count;
@@ -31,22 +31,22 @@ namespace Server.Simulation
         }
     }
 
-    class Result
+    class ComboSMA
     {
         public int BigSMAPeriod;
         public int SmallSMAPeriod;
         public float Percent;
         public int Count;
         public int K;
-        public List<Day> Days;
+        public List<DayResult> Days;
         public float ShadowToBody;
 
-        public Result(int BigSMAPeriod, int SmallSMAPeriod, int K, Day Day, float ShadowToBody)
+        public ComboSMA(int BigSMAPeriod, int SmallSMAPeriod, int K, DayResult Day, float ShadowToBody)
         {
             this.BigSMAPeriod = BigSMAPeriod;
             this.SmallSMAPeriod = SmallSMAPeriod;
             this.K = K;
-            Days = new List<Day>();
+            Days = new List<DayResult>();
             Days.Add(Day);
             this.ShadowToBody = ShadowToBody;
         }
@@ -66,7 +66,7 @@ namespace Server.Simulation
 
         public static void StartHistoryAnalysis(DateTime StartDate, DateTime FinishDate)
         {
-            List<Result> results = new List<Result>();
+            List<ComboSMA> results = new List<ComboSMA>();
 
             // Перебираем Тики по дням
             for (int day = 0; day <= (FinishDate - StartDate).Days; day++)
@@ -83,57 +83,97 @@ namespace Server.Simulation
                         // Перебираем комбинации по малой скользящей средней
                         for (int smallSMA = 2; smallSMA <= 10; smallSMA++)
                             // Перебираем комбинации по соотношению длины тени к телу предыдущей свечи
-                            for (int j = 0; j < 8; j++)
+                            for (int j = 0; j < 7; j++)
                                 // Перебираем комбинации по продолжительности ставки
                                 for (int k = 1; k <= 3; k++)
                                 {
                                     List<Bid> res = HistoryAnalysis(bigSMA, smallSMA, 5, k, j);
 
-                                    Day resultDay = new Day((float) res.FindAll(x => x.Success).Count / res.Count * 100, res.Count, res);
+                                    DayResult resultDay = new DayResult((float) res.FindAll(x => x.Success).Count / res.Count * 100, res.Count, res);
 
+                                    //int resultIndex = results.FindIndex(x => x.BigSMAPeriod == bigSMA && x.SmallSMAPeriod == smallSMA && x.K == k);
                                     int resultIndex = results.FindIndex(x => x.BigSMAPeriod == bigSMA && x.SmallSMAPeriod == smallSMA && x.K == k && x.ShadowToBody == j);
 
                                     if (resultIndex != -1)
                                         results[resultIndex].Days.Add(resultDay);
                                     else
-                                        results.Add(new Result(bigSMA, smallSMA, k, resultDay, j));
+                                        results.Add(new ComboSMA(bigSMA, smallSMA, k, resultDay, j));
                                 }
                 }
             }
 
             // Расчет общего процента и количества сделок по всем дням
-            foreach (Result result in results)
+            foreach (ComboSMA result in results)
             {
                 List<Bid> bids = new List<Bid>();
 
-                foreach (Day day in result.Days)
+                foreach (DayResult day in result.Days)
                     bids.AddRange(day.Bids);
 
                 result.Percent = (float) bids.FindAll(x => x.Success).Count / bids.Count;
                 result.Count = bids.Count;
             }
 
-            List<Result> resultsOverall = results.OrderByDescending(x => x.Percent).ToList();
+            List<ComboSMA> resultsOverall = results.OrderByDescending(x => x.Percent).ToList();
 
             #region Проверяем воспроизведение наилучших стратегий
-            List<NextResult> repeatabilityAnalysis2Day10 = CalcReproducibilityAnalysis(resultsOverall, 2, 10);
-            List<NextResult> repeatabilityAnalysis2Day100 = CalcReproducibilityAnalysis(resultsOverall, 2, 100);
+            List<NextResult> repeatabilityAnalysis2Day10 = CalcReproducibilityAnalysis(resultsOverall, 2, 10, true);
+            List<NextResult> repeatabilityAnalysis2Day100 = CalcReproducibilityAnalysis(resultsOverall, 2, 100, true);
 
-            List<NextResult> repeatabilityAnalysis3Day10 = CalcReproducibilityAnalysis(resultsOverall, 3, 10);
-            List<NextResult> repeatabilityAnalysis3Day100 = CalcReproducibilityAnalysis(resultsOverall, 3, 100);
+            List<NextResult> repeatabilityAnalysis3Day10 = CalcReproducibilityAnalysis(resultsOverall, 3, 10, true);
+            List<NextResult> repeatabilityAnalysis3Day100 = CalcReproducibilityAnalysis(resultsOverall, 3, 100, true);
 
-            List<NextResult> repeatabilityAnalysis4Day10 = CalcReproducibilityAnalysis(resultsOverall, 4, 10);
-            List<NextResult> repeatabilityAnalysis4Day100 = CalcReproducibilityAnalysis(resultsOverall, 4, 100);
+            List<NextResult> repeatabilityAnalysis4Day10 = CalcReproducibilityAnalysis(resultsOverall, 4, 10, true);
+            List<NextResult> repeatabilityAnalysis4Day100 = CalcReproducibilityAnalysis(resultsOverall, 4, 100, true);
 
-            List<NextResult> repeatabilityAnalysis5Day10 = CalcReproducibilityAnalysis(resultsOverall, 5, 10);
-            List<NextResult> repeatabilityAnalysis5Day100 = CalcReproducibilityAnalysis(resultsOverall, 5, 100);
+            List<NextResult> repeatabilityAnalysis5Day10 = CalcReproducibilityAnalysis(resultsOverall, 5, 10, true);
+            List<NextResult> repeatabilityAnalysis5Day100 = CalcReproducibilityAnalysis(resultsOverall, 5, 100, true);
 
-            List<NextResult> repeatabilityAnalysis6Day10 = CalcReproducibilityAnalysis(resultsOverall, 6, 10);
-            List<NextResult> repeatabilityAnalysis6Day100 = CalcReproducibilityAnalysis(resultsOverall, 6, 100);
+            List<NextResult> repeatabilityAnalysis6Day10 = CalcReproducibilityAnalysis(resultsOverall, 6, 10, true);
+            List<NextResult> repeatabilityAnalysis6Day100 = CalcReproducibilityAnalysis(resultsOverall, 6, 100, true);
 
-            List<NextResult> repeatabilityAnalysis7Day10 = CalcReproducibilityAnalysis(resultsOverall, 7, 10);
-            List<NextResult> repeatabilityAnalysis7Day100 = CalcReproducibilityAnalysis(resultsOverall, 7, 100);
+            List<NextResult> repeatabilityAnalysis7Day10 = CalcReproducibilityAnalysis(resultsOverall, 7, 10, true);
+            List<NextResult> repeatabilityAnalysis7Day100 = CalcReproducibilityAnalysis(resultsOverall, 7, 100, true);
             #endregion
+
+            /* Корректировка за весь период */
+            List<NextResult> _repeatabilityAnalysis2Day10 = CalcReproducibilityAnalysis(results, 2, 10, true);
+            List<NextResult> _repeatabilityAnalysis2Day100 = CalcReproducibilityAnalysis(results, 2, 100, true);
+
+            List<NextResult> _repeatabilityAnalysis3Day10 = CalcReproducibilityAnalysis(results, 3, 10, true);
+            List<NextResult> _repeatabilityAnalysis3Day100 = CalcReproducibilityAnalysis(results, 3, 100, true);
+
+            List<NextResult> _repeatabilityAnalysis4Day10 = CalcReproducibilityAnalysis(results, 4, 10, true);
+            List<NextResult> _repeatabilityAnalysis4Day100 = CalcReproducibilityAnalysis(results, 4, 100, true);
+
+            List<NextResult> _repeatabilityAnalysis5Day10 = CalcReproducibilityAnalysis(results, 5, 10, true);
+            List<NextResult> _repeatabilityAnalysis5Day100 = CalcReproducibilityAnalysis(results, 5, 100, true);
+
+            List<NextResult> _repeatabilityAnalysis6Day10 = CalcReproducibilityAnalysis(results, 6, 10, true);
+            List<NextResult> _repeatabilityAnalysis6Day100 = CalcReproducibilityAnalysis(results, 6, 100, true);
+
+            List<NextResult> _repeatabilityAnalysis7Day10 = CalcReproducibilityAnalysis(results, 7, 10, true);
+            List<NextResult> _repeatabilityAnalysis7Day100 = CalcReproducibilityAnalysis(results, 7, 100, true);
+
+
+            /* Расчет за последние N дней */
+            List<NextResult> __repeatabilityAnalysis2Day10 = CalcReproducibilityAnalysis(results, 2, 10, false);
+            List<NextResult> __repeatabilityAnalysis2Day100 = CalcReproducibilityAnalysis(results, 2, 100, false);
+
+            List<NextResult> __repeatabilityAnalysis3Day10 = CalcReproducibilityAnalysis(results, 3, 10, false);
+            List<NextResult> __repeatabilityAnalysis3Day100 = CalcReproducibilityAnalysis(results, 3, 100, false);
+
+            List<NextResult> __repeatabilityAnalysis4Day10 = CalcReproducibilityAnalysis(results, 4, 10, false);
+            List<NextResult> __repeatabilityAnalysis4Day100 = CalcReproducibilityAnalysis(results, 4, 100, false);
+
+            List<NextResult> __repeatabilityAnalysis5Day10 = CalcReproducibilityAnalysis(results, 5, 10, false);
+            List<NextResult> __repeatabilityAnalysis5Day100 = CalcReproducibilityAnalysis(results, 5, 100, false);
+
+            List<NextResult> __repeatabilityAnalysis6Day10 = CalcReproducibilityAnalysis(results, 6, 10, false);
+            List<NextResult> __repeatabilityAnalysis6Day100 = CalcReproducibilityAnalysis(results, 6, 100, false);
+
+            List<NextResult> __repeatabilityAnalysis7Day10 = CalcReproducibilityAnalysis(results, 7, 10, false);
+            List<NextResult> __repeatabilityAnalysis7Day100 = CalcReproducibilityAnalysis(results, 7, 100, false);
         }
 
         private static List<Bid> HistoryAnalysis(int BigSMAPeriod, int SmallSMAPeriod, int TimeFrame, int K, int ShadowToBody)
@@ -174,6 +214,7 @@ namespace Server.Simulation
                                         TimeFrame,
                                         ticks[i],
                                         resultTick,
+                                        ((currBigSMA - currSmallSMA) > 0) ? "down" : "up",
                                         (ticks[i].Value - resultTick.Value > 0) != (currBigSMA - currSmallSMA > 0),
                                         BigSMAPeriod,
                                         SmallSMAPeriod,
@@ -310,7 +351,7 @@ namespace Server.Simulation
                 return nextTicks.Last();
         }
 
-        private static float CalcStatForPeriod(List<Day> Days, int StartIndexDay, int FinishIndexDay)
+        private static float CalcStatForPeriod(List<DayResult> Days, int StartIndexDay, int FinishIndexDay)
         {
             List<Bid> bids = new List<Bid>();
 
@@ -320,7 +361,7 @@ namespace Server.Simulation
             return (float)bids.FindAll(x => x.Success).Count / bids.Count;
         }
 
-        private static NextResult CalcStatForNextDay(List<Result> List, int Day, int BidsCount)
+        private static NextResult CalcStatForNextDay(List<ComboSMA> List, int Day, int BidsCount)
         {
             if (Day < List.First().Days.Count)
             {
@@ -354,18 +395,22 @@ namespace Server.Simulation
                 return null;
         }
 
-        private static List<NextResult> CalcReproducibilityAnalysis(List<Result> List, int Period, int BidsCount)
+        private static List<NextResult> CalcReproducibilityAnalysis(List<ComboSMA> List, int Period, int BidsCount, bool CalcAllPeriod)
         {
             List<NextResult> resultList = new List<NextResult>();
 
             int DayCount = List.First().Days.Count;
 
             for (int i = 0; i < DayCount - Period; i++)
+            {
+                List<ComboSMA> _list = CalcAllPeriod ? List.OrderByDescending(x => CalcStatForPeriod(x.Days, 0, i + Period)).ToList() : List;
+
                 resultList.Add(CalcStatForNextDay(
-                    List.OrderByDescending(x => CalcStatForPeriod(x.Days, i, i + Period)).ToList(),
+                    _list.OrderByDescending(x => CalcStatForPeriod(x.Days, i, i + Period)).ToList(),
                     i + Period,
                     BidsCount
                 ));
+            }
 
             return resultList;
         }
