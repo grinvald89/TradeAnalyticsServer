@@ -75,6 +75,10 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Candlestick.cs" />
+    <Compile Include="Scalping\Bid.cs" />
+    <Compile Include="Scalping\Combo.cs" />
+    <Compile Include="Scalping\Scalping.cs" />
+    <Compile Include="Scalping\Tests.cs" />
     <Compile Include="Simulation\Bid.cs" />
     <Compile Include="Simulation\Simulation.cs" />
     <Compile Include="Tick.cs" />

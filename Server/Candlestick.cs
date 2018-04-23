@@ -13,7 +13,8 @@ namespace Server
         public float Low;
         public int TimeFrame;
 
-        public Candlestick(long PairId, DateTime Date, float Open, float Close, float High, float Low, int TimeFrame)
+        // public Candlestick(long PairId, DateTime Date, float Open, float Close, float High, float Low, int TimeFrame)
+        public Candlestick(long PairId, DateTime Date, float Open, float High, float Low, float Close, int TimeFrame)
         {
             this.PairId = PairId;
             this.Date = Date;

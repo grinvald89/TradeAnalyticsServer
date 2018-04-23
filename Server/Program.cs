@@ -15,16 +15,20 @@ namespace Server
         [STAThread]
         static void Main()
         {
-            DataBase.DataBase.open();
-            Config.lPairs = DataBase.DataBase.getPairs();
+            // DataBase.DataBase.open();
+            // Config.lPairs = DataBase.DataBase.getPairs();
 
             // DataBase.TXTtoDB.Candlesticks();
             // DataBase.TXTtoDB.Ticks();
 
+            /*
             Simulation.Simulation.StartHistoryAnalysis(
                 new DateTime(2018, 03, 23),
                 new DateTime(2018, 04, 13)
             );
+            */
+
+            Scalping.Scalping.HistoryAnalisys();
 
             // ThreadPool.QueueUserWorkItem(StateInfo => new WebServer.Server(8080));
 
